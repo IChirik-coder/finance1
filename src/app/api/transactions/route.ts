@@ -2,9 +2,9 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_PLATFORMS = [
-  'Яндекс карты', 'Google карты', '2ГИС', 'Яндекс Услуги',
-  'Профи.ру', 'Авито', 'Озон', 'ВКонтакте', 'Telegram',
-  'Яндекс Дзен', 'Tripadvisor', 'Другое'
+  'Яндекс карты', '2ГИС', 'Google карты', 'Zoon', 'Яндекс Браузер',
+  'Яндекс Услуги', 'Flamp', 'Yell', 'ВК', 'ЦИАН',
+  'Tripadvisor', 'Restaurantguru', 'Отзовик'
 ]
 
 function validateTaxRate(taxRate: unknown, type: string): number | null {

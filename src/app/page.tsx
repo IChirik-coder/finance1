@@ -34,18 +34,19 @@ interface Transaction {
 // ──────────────────────────── Constants ────────────────────────────
 
 const PLATFORMS = [
-  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex.svg' },
-  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.svg' },
-  { name: '2ГИС', fee: 25, icon: '/icons/2gis.svg' },
-  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.svg' },
-  { name: 'Профи.ру', fee: 50, icon: '/icons/profi.svg' },
-  { name: 'Авито', fee: 50, icon: '/icons/avito.svg' },
-  { name: 'Озон', fee: 25, icon: '/icons/ozon.svg' },
-  { name: 'ВКонтакте', fee: 25, icon: '/icons/vk.svg' },
-  { name: 'Telegram', fee: 25, icon: '/icons/telegram.svg' },
-  { name: 'Яндекс Дзен', fee: 25, icon: '/icons/yandex.svg' },
-  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.svg' },
-  { name: 'Другое', fee: 25, icon: '/icons/other.svg' },
+  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
+  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
+  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
+  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
+  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
+  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
+  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
+  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
+  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
+  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
+  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
+  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
+  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
 ] as const
 
 const PLATFORM_FEE_MAP: Record<string, number> = {}
