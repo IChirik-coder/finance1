@@ -196,10 +196,10 @@ function invalidateCache() { txCache.clear() }
 
 // ──────────────────────────── Memoized Sub-components ────────────────────────────
 
-const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12 | 16 | 20; iconMap: Record<string, string> }) {
+const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12 | 16 | 20 | 24; iconMap: Record<string, string> }) {
   const icon = iconMap[name]
   if (!icon) return null
-  return <img src={icon} alt={name} width={size} height={size} className="inline-block" />
+  return <img src={icon} alt={name} width={size} height={size} className="inline-block rounded-sm" />
 })
 
 const TransactionRow = memo(function TransactionRow({
@@ -217,51 +217,55 @@ const TransactionRow = memo(function TransactionRow({
   const categoryObj = EXPENSE_CATEGORIES.find(c => c.value === t.category)
 
   return (
-    <div className="group flex items-center gap-3 py-3 px-1 hover:bg-secondary/50 transition-colors">
-      {/* Icon box */}
-      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-sm font-black ${
+    <div className="group flex items-center gap-3 py-3.5 px-3 hover:bg-white/40 transition-all duration-200 rounded-2xl">
+      {/* Icon */}
+      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-sm font-semibold rounded-2xl ${
         isIncome
-          ? 'border-2 border-foreground'
-          : 'bg-brand text-white'
+          ? 'bg-blue-500/10 text-blue-500'
+          : 'bg-red-500/10 text-red-500'
       }`}>
-        {isIncome ? <ArrowUpRight className="w-4 h-4" /> : (
-          categoryObj ? <span className="text-base">{categoryObj.icon}</span> : <ArrowDownRight className="w-4 h-4" />
+        {isIncome ? <ArrowUpRight className="w-4.5 h-4.5" /> : (
+          categoryObj ? <span className="text-base">{categoryObj.icon}</span> : <ArrowDownRight className="w-4.5 h-4.5" />
         )}
       </div>
 
       {/* Description + tags */}
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm truncate">{t.description}</div>
-        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+        <div className="font-medium text-sm truncate">{t.description}</div>
+        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
           {t.category && categoryObj && (
-            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{categoryObj.label}</span>
+            <span className="text-[11px] text-muted-foreground">{categoryObj.label}</span>
           )}
           {platforms.map((p, i) => (
-            <span key={i} className="inline-flex items-center gap-0.5 bg-foreground text-background text-[10px] px-1 py-0.5 font-medium">
+            <span key={i} className="inline-flex items-center gap-1 bg-foreground/[0.06] text-foreground/70 text-[11px] px-2 py-0.5 rounded-full font-medium">
               <PlatformIcon name={p.name} size={12} iconMap={iconMap} />
               {p.reviewCount}
             </span>
           ))}
           {isIncome && t.taxRate && (
-            <span className="bg-brand text-white text-[10px] px-1 py-0.5 font-medium">-{t.taxRate}%</span>
+            <span className="bg-brand/10 text-brand text-[11px] px-2 py-0.5 rounded-full font-medium">-{t.taxRate}%</span>
           )}
-          <span className="text-[10px] text-muted-foreground">{formatDate(t.date)}</span>
+          <span className="text-[11px] text-muted-foreground">{formatDate(t.date)}</span>
           {isIncome && platforms.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground">
               (комиссии: {formatCurrency(getExecutorFee(t, feeMap))})
             </span>
           )}
         </div>
       </div>
 
-      {/* Amount */}
+      {/* Amount + actions */}
       <div className="flex-shrink-0 flex items-center gap-2">
-        <span className={`font-black text-sm ${isIncome ? '' : 'text-brand'}`}>
+        <span className={`font-semibold text-sm tabular-nums ${isIncome ? 'text-blue-500' : 'text-red-500'}`}>
           {isBalanceHidden ? '•••' : `${isIncome ? '+' : '−'}${formatCurrency(t.amount)}`}
         </span>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity max-sm:opacity-50">
-          <button onClick={() => onEdit(t)} className="p-1 hover:bg-secondary"><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => onDelete(t.id)} className="p-1 hover:bg-secondary"><Trash2 className="w-3.5 h-3.5" /></button>
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button onClick={() => onEdit(t)} className="p-1.5 rounded-xl hover:bg-white/60 transition-colors">
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-xl hover:bg-white/60 transition-colors">
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
         </div>
       </div>
     </div>
@@ -270,12 +274,12 @@ const TransactionRow = memo(function TransactionRow({
 
 const StatCard = memo(function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="border-2 p-3 space-y-1">
+    <div className="glass-pill rounded-2xl p-4 space-y-1.5 glass-hover">
       <div className="flex items-center gap-2">
-        {icon}
-        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{label}</span>
+        <span className="text-brand">{icon}</span>
+        <span className="text-[11px] font-medium text-muted-foreground tracking-wide">{label}</span>
       </div>
-      <div className="font-black text-lg">{value}</div>
+      <div className="font-semibold text-lg tabular-nums">{value}</div>
     </div>
   )
 })
@@ -312,14 +316,14 @@ function TransactionForm({
   const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
 
   return (
-    <div className="space-y-4">
-      {/* Type */}
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-5">
+      {/* Type toggle */}
+      <div className="flex bg-secondary rounded-2xl p-1 gap-1">
         <button
           type="button"
           onClick={() => { setType('income') }}
-          className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
-            isIncome ? 'bg-foreground text-background border-foreground' : 'border-border hover:border-foreground'
+          className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${
+            isIncome ? 'bg-white text-blue-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Доход
@@ -327,8 +331,8 @@ function TransactionForm({
         <button
           type="button"
           onClick={() => { setType('expense'); setTaxRate('none') }}
-          className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
-            !isIncome ? 'bg-brand text-white border-brand' : 'border-border hover:border-brand'
+          className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${
+            !isIncome ? 'bg-white text-red-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Расход
@@ -342,31 +346,31 @@ function TransactionForm({
           placeholder="0"
           value={amount}
           onChange={e => setAmount(e.target.value)}
-          className="text-2xl font-black h-14 pr-10 border-2"
+          className="text-3xl font-semibold h-16 pr-12 rounded-2xl bg-white/50 border-white/30 backdrop-blur-sm tabular-nums"
           min="0"
           step="any"
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-muted-foreground">₽</span>
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">₽</span>
       </div>
 
       {/* Category (expense only) */}
       {!isIncome && (
         <div>
-          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Категория</label>
-          <div className="grid grid-cols-4 gap-1.5">
+          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Категория</label>
+          <div className="grid grid-cols-4 gap-2">
             {EXPENSE_CATEGORIES.map(c => (
               <button
                 key={c.value}
                 type="button"
                 onClick={() => setCategory(c.value)}
-                className={`flex flex-col items-center gap-0.5 p-2 text-[10px] border-2 transition-colors ${
+                className={`flex flex-col items-center gap-1 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${
                   category === c.value
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'border-border hover:border-foreground'
+                    ? 'bg-red-500/10 text-red-500 font-semibold'
+                    : 'bg-white/40 text-muted-foreground hover:bg-white/60'
                 }`}
               >
-                <span className="text-base">{c.icon}</span>
-                <span className="uppercase tracking-wider">{c.label}</span>
+                <span className="text-lg">{c.icon}</span>
+                <span>{c.label}</span>
               </button>
             ))}
           </div>
@@ -376,8 +380,8 @@ function TransactionForm({
       {/* Platforms (income only) */}
       {isIncome && (
         <div>
-          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Площадки</label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Площадки</label>
+          <div className="grid grid-cols-3 gap-2">
             {platformsList.map(p => {
               const selected = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
               return (
@@ -385,15 +389,15 @@ function TransactionForm({
                   key={p.name}
                   type="button"
                   onClick={() => togglePlatform(p.name)}
-                  className={`flex items-center gap-1.5 p-2 text-[10px] border-2 transition-colors ${
+                  className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${
                     selected
-                      ? 'bg-foreground text-background border-foreground'
-                      : 'border-border hover:border-foreground'
+                      ? 'bg-blue-500/10 text-blue-500 font-semibold ring-1 ring-blue-500/20'
+                      : 'bg-white/40 text-muted-foreground hover:bg-white/60'
                   }`}
                 >
                   <PlatformIcon name={p.name} size={16} iconMap={iconMap} />
-                  <span className="truncate uppercase tracking-wider">{p.name}</span>
-                  {selected && <span className="ml-auto text-brand-light">✓</span>}
+                  <span className="truncate">{p.name}</span>
+                  {selected && <span className="ml-auto text-blue-400">✓</span>}
                 </button>
               )
             })}
@@ -401,12 +405,12 @@ function TransactionForm({
         </div>
       )}
 
-      {/* Review counts (income + selected platforms) */}
+      {/* Review counts */}
       {isIncome && selectedPlatforms.length > 0 && (
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Количество отзывов</label>
+          <label className="text-[11px] font-medium text-muted-foreground tracking-wide">Количество отзывов</label>
           {selectedPlatforms.map(p => (
-            <div key={p.name} className="flex items-center gap-2 border-2 p-2">
+            <div key={p.name} className="flex items-center gap-2 bg-white/40 rounded-2xl p-3 backdrop-blur-sm">
               <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
               <span className="text-xs font-medium flex-shrink-0">{p.name}</span>
               <Input
@@ -414,17 +418,17 @@ function TransactionForm({
                 min="1"
                 value={p.reviewCount}
                 onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value) || 0)}
-                className="h-8 w-20 text-sm border-2"
+                className="h-8 w-20 text-sm rounded-xl bg-white/50 border-white/30 tabular-nums"
               />
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
                 {feeMap[p.name] || 0}₽ × {p.reviewCount} = {((feeMap[p.name] || 0) * p.reviewCount)}₽
               </span>
               <button
                 type="button"
                 onClick={() => setPlatformReviewCount(p.name, 0)}
-                className="ml-auto p-1 hover:bg-secondary"
+                className="ml-auto p-1 rounded-lg hover:bg-white/60 transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
             </div>
           ))}
@@ -434,17 +438,17 @@ function TransactionForm({
       {/* Tax rate (income only) */}
       {isIncome && (
         <div>
-          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Налоговый вычет</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Налоговый вычет</label>
+          <div className="flex bg-secondary rounded-2xl p-1 gap-1">
             {(['none', '4', '6'] as const).map(rate => (
               <button
                 key={rate}
                 type="button"
                 onClick={() => setTaxRate(rate)}
-                className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
+                className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${
                   taxRate === rate
-                    ? (rate === 'none' ? 'bg-foreground text-background border-foreground' : 'bg-brand text-white border-brand')
-                    : 'border-border hover:border-foreground'
+                    ? (rate === 'none' ? 'bg-white text-foreground shadow-sm' : 'bg-brand text-white shadow-sm')
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {rate === 'none' ? 'Без вычета' : `${rate}%`}
@@ -454,52 +458,52 @@ function TransactionForm({
         </div>
       )}
 
-      {/* Preview (income + filled amount) */}
+      {/* Preview */}
       {isIncome && numAmount > 0 && (
-        <div className="border-2 border-border p-4 bg-secondary/50 space-y-2">
+        <div className="glass rounded-2xl p-4 space-y-2.5">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Сумма</span>
-            <span className="font-bold">{formatFullCurrency(numAmount)}</span>
+            <span className="font-medium tabular-nums">{formatFullCurrency(numAmount)}</span>
           </div>
           {totalTax > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Налог</span>
-              <span className="font-bold text-brand">−{formatFullCurrency(totalTax)}</span>
+              <span className="font-medium text-red-500 tabular-nums">−{formatFullCurrency(totalTax)}</span>
             </div>
           )}
           {totalExecutorFee > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Исполнители</span>
-              <span className="font-bold text-brand">−{formatFullCurrency(totalExecutorFee)}</span>
+              <span className="font-medium text-red-500 tabular-nums">−{formatFullCurrency(totalExecutorFee)}</span>
             </div>
           )}
-          <Separator />
+          <Separator className="bg-black/5" />
           <div className="flex justify-between text-sm">
-            <span className="font-black uppercase tracking-[0.15em]">К выдаче</span>
-            <span className="font-black text-lg">{formatFullCurrency(netAmount)}</span>
+            <span className="font-semibold">К выдаче</span>
+            <span className="font-bold text-lg text-blue-500 tabular-nums">{formatFullCurrency(netAmount)}</span>
           </div>
         </div>
       )}
 
       {/* Description */}
       <div>
-        <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-1 block">Описание</label>
+        <label className="text-[11px] font-medium text-muted-foreground mb-1.5 block tracking-wide">Описание</label>
         <Input
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder="Например: Зарплата за январь"
-          className="border-2"
+          className="rounded-2xl bg-white/50 border-white/30 backdrop-blur-sm"
         />
       </div>
 
       {/* Date */}
       <div>
-        <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-1 block">Дата</label>
+        <label className="text-[11px] font-medium text-muted-foreground mb-1.5 block tracking-wide">Дата</label>
         <Input
           type="date"
           value={date}
           onChange={e => setDate(e.target.value)}
-          className="border-2"
+          className="rounded-2xl bg-white/50 border-white/30 backdrop-blur-sm"
         />
       </div>
 
@@ -507,8 +511,10 @@ function TransactionForm({
       <Button
         onClick={onSubmit}
         disabled={isSubmitting}
-        className={`w-full h-12 font-black uppercase tracking-[0.15em] ${
-          isIncome ? 'bg-foreground text-background hover:bg-foreground/90' : 'bg-brand text-white hover:bg-brand/90'
+        className={`w-full h-12 font-semibold rounded-2xl text-sm transition-all duration-200 ${
+          isIncome
+            ? 'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700'
+            : 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700'
         }`}
       >
         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : submitLabel}
@@ -689,7 +695,7 @@ export default function Home() {
     }))
 
     setIsEditDialogOpen(true)
-  }, [])
+  }, [platforms])
 
   // Validation
   const validateForm = useCallback((mode: 'add' | 'edit'): string | null => {
@@ -709,7 +715,7 @@ export default function Home() {
     setFormTaxRate('none')
     setFormPlatforms(platforms.map(p => ({ name: p.name, reviewCount: 0 })))
     setFormCategory('other')
-  }, [])
+  }, [platforms])
 
   // Submit handlers
   const handleAddSubmit = useCallback(async () => {
@@ -886,37 +892,34 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 mix-blend-difference">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
-              <div className="bg-white" />
-              <div className="bg-white opacity-30" />
-              <div className="bg-white opacity-30" />
-              <div className="bg-white" />
+      {/* ── Floating glass nav bar ── */}
+      <nav className="fixed top-3 left-3 right-3 z-50">
+        <div className="glass-heavy rounded-2xl max-w-3xl mx-auto px-4 h-12 flex items-center justify-between pill-press">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+              <span className="text-white text-[11px] font-bold">₽</span>
             </div>
-            <span className="text-white font-black text-sm uppercase tracking-[0.3em]">Финансы</span>
+            <span className="font-semibold text-sm tracking-tight">Финансы</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 text-white hover:opacity-70 transition-opacity"
+              className="p-2 rounded-xl hover:bg-white/50 transition-colors"
               title="Настройки"
             >
-              <Settings className="w-5 h-5" />
+              <Settings className="w-[18px] h-[18px] text-muted-foreground" />
             </button>
             <button
               onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchRef.current?.focus(), 100) }}
-              className="p-2 text-white hover:opacity-70 transition-opacity"
+              className="p-2 rounded-xl hover:bg-white/50 transition-colors"
             >
-              {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+              {showSearch ? <X className="w-[18px] h-[18px] text-muted-foreground" /> : <Search className="w-[18px] h-[18px] text-muted-foreground" />}
             </button>
             <button
               onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
-              className="p-2 bg-brand text-white hover:bg-brand-light transition-colors"
+              className="p-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-[18px] h-[18px]" />
             </button>
           </div>
         </div>
@@ -924,8 +927,8 @@ export default function Home() {
 
       {/* Search panel */}
       {showSearch && (
-        <div className="fixed top-14 left-0 right-0 z-40 bg-background border-b-2 border-border animate-[slideDown_0.2s_ease-out]">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
+        <div className="fixed top-[60px] left-3 right-3 z-40 animate-[slideDown_0.25s_cubic-bezier(0.25,0.46,0.45,0.94)]">
+          <div className="glass-heavy rounded-2xl max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
             <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <input
               ref={searchRef}
@@ -933,108 +936,104 @@ export default function Home() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Поиск транзакций..."
-              className="flex-1 bg-transparent outline-none text-sm"
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="p-1 hover:bg-secondary">
-                <X className="w-4 h-4" />
+              <button onClick={() => setSearchQuery('')} className="p-1 rounded-lg hover:bg-white/60 transition-colors">
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Main content */}
-      <main className="max-w-3xl mx-auto px-4 pt-20 pb-24">
+      {/* ── Main content ── */}
+      <main className="max-w-3xl mx-auto px-4 pt-20 pb-28">
         {/* Hero section */}
         <section className="mb-8">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-4">
-            [ Трекер доходов и расходов ]
-          </p>
-
           {/* Month navigator */}
           <div className="flex items-center justify-between mb-6">
-            <button onClick={goToPrevMonth} className="p-2 hover:bg-secondary transition-colors">
-              <ChevronLeft className="w-5 h-5" />
+            <button onClick={goToPrevMonth} className="p-2.5 rounded-xl glass-pill hover:bg-white/60 transition-colors pill-press">
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
             <div className="flex items-center gap-3">
-              <h1 className="font-black text-xl uppercase tracking-tighter">
+              <h1 className="font-semibold text-lg tracking-tight">
                 {MONTHS_RU[selectedMonth - 1]} {selectedYear}
               </h1>
               {!isCurrentMonth && (
                 <button
                   onClick={goToCurrentMonth}
-                  className="text-[10px] uppercase tracking-[0.15em] border-2 border-border px-2 py-1 hover:border-foreground transition-colors"
+                  className="text-[11px] font-medium text-brand bg-brand/10 px-3 py-1 rounded-full hover:bg-brand/15 transition-colors pill-press"
                 >
                   Сегодня
                 </button>
               )}
             </div>
-            <button onClick={goToNextMonth} className="p-2 hover:bg-secondary transition-colors">
-              <ChevronRight className="w-5 h-5" />
+            <button onClick={goToNextMonth} className="p-2.5 rounded-xl glass-pill hover:bg-white/60 transition-colors pill-press">
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
-          {/* Balance */}
-          <div className="mb-6">
-            <div className="flex items-end gap-3">
-              <div className="font-black text-4xl sm:text-6xl md:text-[80px] tracking-tighter leading-none">
-                {isBalanceHidden ? '•••' : formatCurrency(stats.balance)}
-              </div>
+          {/* Balance card */}
+          <div className="glass rounded-3xl p-6 mb-5 glass-hover">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Баланс</span>
               <button
                 onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-                className="pb-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/60 transition-colors"
               >
-                {isBalanceHidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {isBalanceHidden ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
               </button>
             </div>
-            <div className="h-1 w-24 bg-brand opacity-20 mt-2" />
+            <div className="font-bold text-5xl sm:text-6xl tracking-tight tabular-nums bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+              {isBalanceHidden ? '•••' : formatCurrency(stats.balance)}
+            </div>
           </div>
 
           {/* Income / Expense summary */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 border-2 border-foreground flex items-center justify-center">
-                <ArrowUpRight className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Доходы</div>
-                <div className="font-black text-lg">
-                  {isBalanceHidden ? '•••' : formatCurrency(stats.totalIncome)}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="glass-pill rounded-2xl p-4 glass-hover">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <ArrowUpRight className="w-4 h-4 text-blue-500" />
                 </div>
-                {!isBalanceHidden && stats.totalGrossIncome !== stats.totalIncome && (
-                  <div className="text-[10px] text-muted-foreground">
-                    Гросс {formatCurrency(stats.totalGrossIncome)}
-                    {stats.totalTax > 0 && ` · Налог ${formatCurrency(stats.totalTax)}`}
-                    {stats.totalExecutorFee > 0 && ` · Исполнители ${formatCurrency(stats.totalExecutorFee)}`}
-                  </div>
-                )}
+                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Доходы</span>
               </div>
+              <div className="font-semibold text-lg tabular-nums text-blue-500">
+                {isBalanceHidden ? '•••' : formatCurrency(stats.totalIncome)}
+              </div>
+              {!isBalanceHidden && stats.totalGrossIncome !== stats.totalIncome && (
+                <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                  Гросс {formatCurrency(stats.totalGrossIncome)}
+                  {stats.totalTax > 0 && ` · Налог ${formatCurrency(stats.totalTax)}`}
+                  {stats.totalExecutorFee > 0 && ` · Исполнители ${formatCurrency(stats.totalExecutorFee)}`}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-brand text-white flex items-center justify-center">
-                <ArrowDownRight className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Расходы</div>
-                <div className={`font-black text-lg ${isBalanceHidden ? '' : 'text-brand'}`}>
-                  {isBalanceHidden ? '•••' : formatCurrency(stats.totalExpense)}
+            <div className="glass-pill rounded-2xl p-4 glass-hover">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <ArrowDownRight className="w-4 h-4 text-red-500" />
                 </div>
+                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Расходы</span>
+              </div>
+              <div className={`font-semibold text-lg tabular-nums ${isBalanceHidden ? '' : 'text-red-500'}`}>
+                {isBalanceHidden ? '•••' : formatCurrency(stats.totalExpense)}
               </div>
             </div>
           </div>
 
           {/* Expense ratio bar */}
           {stats.totalIncome > 0 && !isBalanceHidden && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] uppercase tracking-[0.15em]">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] font-medium">
                 <span className="text-muted-foreground">Расходы от доходов</span>
-                <span className="font-black">{stats.expenseRatio.toFixed(0)}%</span>
+                <span className="tabular-nums">{stats.expenseRatio.toFixed(0)}%</span>
               </div>
-              <div className="h-2 bg-secondary">
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all ${
-                    stats.expenseRatio > 90 ? 'bg-brand' : stats.expenseRatio > 70 ? 'bg-brand/70' : 'bg-foreground/60'
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    stats.expenseRatio > 90 ? 'bg-red-500' : stats.expenseRatio > 70 ? 'bg-orange-400' : 'bg-blue-500'
                   }`}
                   style={{ width: `${Math.min(stats.expenseRatio, 100)}%` }}
                 />
@@ -1046,7 +1045,7 @@ export default function Home() {
         {/* Quick stats */}
         {transactions.length > 0 && (
           <section className="mb-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Макс. доход" value={isBalanceHidden ? '•••' : formatCurrency(stats.maxIncome)} />
               <StatCard icon={<TrendingDown className="w-4 h-4" />} label="Макс. расход" value={isBalanceHidden ? '•••' : formatCurrency(stats.maxExpense)} />
               <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний доход" value={isBalanceHidden ? '•••' : formatCurrency(stats.avgIncome)} />
@@ -1057,8 +1056,8 @@ export default function Home() {
 
         {/* Daily activity chart */}
         {Object.keys(stats.dailyData).length > 1 && (
-          <section className="mb-8 border-2 border-border p-4">
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-3">Активность по дням</h3>
+          <section className="mb-8 glass rounded-3xl p-5">
+            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase mb-4">Активность по дням</h3>
             <div className="flex items-end gap-[2px] h-24">
               {chartDays.map(day => {
                 const d = stats.dailyData[day]
@@ -1068,20 +1067,20 @@ export default function Home() {
                 const expH = (d.expense / maxVal) * 100
                 return (
                   <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0">
-                    {d.income > 0 && <div className="bg-foreground/60 w-full" style={{ height: `${incH}%` }} title={`Доход: ${formatCurrency(d.income)}`} />}
-                    {d.expense > 0 && <div className="bg-brand/70 w-full" style={{ height: `${expH}%` }} title={`Расход: ${formatCurrency(d.expense)}`} />}
+                    {d.income > 0 && <div className="bg-blue-500/60 w-full rounded-t-sm" style={{ height: `${incH}%` }} title={`Доход: ${formatCurrency(d.income)}`} />}
+                    {d.expense > 0 && <div className="bg-red-500/60 w-full rounded-t-sm" style={{ height: `${expH}%` }} title={`Расход: ${formatCurrency(d.expense)}`} />}
                   </div>
                 )
               })}
             </div>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-2 bg-foreground/60" />
-                <span className="text-[10px] text-muted-foreground">Доходы</span>
+            <div className="flex items-center gap-5 mt-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-2 bg-blue-500/60 rounded-sm" />
+                <span className="text-[11px] text-muted-foreground">Доходы</span>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-2 bg-brand/70" />
-                <span className="text-[10px] text-muted-foreground">Расходы</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-2 bg-red-500/60 rounded-sm" />
+                <span className="text-[11px] text-muted-foreground">Расходы</span>
               </div>
             </div>
           </section>
@@ -1089,24 +1088,24 @@ export default function Home() {
 
         {/* Expense categories */}
         {stats.totalExpense > 0 && !isBalanceHidden && Object.keys(stats.categoryBreakdown).length > 0 && (
-          <section className="mb-8 border-2 border-border p-4 space-y-3">
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Категории расходов</h3>
+          <section className="mb-8 glass rounded-3xl p-5 space-y-4">
+            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Категории расходов</h3>
             {Object.entries(stats.categoryBreakdown)
               .sort(([, a], [, b]) => b - a)
               .map(([cat, amount]) => {
                 const catObj = EXPENSE_CATEGORIES.find(c => c.value === cat)
                 const pct = stats.totalExpense > 0 ? (amount / stats.totalExpense) * 100 : 0
                 return (
-                  <div key={cat} className="space-y-1">
+                  <div key={cat} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2">
                         <span>{catObj?.icon}</span>
                         <span className="font-medium">{catObj?.label || cat}</span>
                       </span>
-                      <span className="font-black">{formatCurrency(amount)}</span>
+                      <span className="font-semibold tabular-nums">{formatCurrency(amount)}</span>
                     </div>
-                    <div className="h-1.5 bg-secondary">
-                      <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-red-500/60 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 )
@@ -1118,18 +1117,18 @@ export default function Home() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="font-black text-lg uppercase tracking-tighter">Транзакции</h2>
-              <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+              <h2 className="font-semibold text-base tracking-tight">Транзакции</h2>
+              <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full">
                 {filteredTransactions.length} {pluralize(filteredTransactions.length)}
               </span>
             </div>
           </div>
 
           <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all' | 'income' | 'expense')} className="mb-4">
-            <TabsList className="w-full">
-              <TabsTrigger value="all" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Все</TabsTrigger>
-              <TabsTrigger value="income" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Доходы</TabsTrigger>
-              <TabsTrigger value="expense" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Расходы</TabsTrigger>
+            <TabsList className="w-full bg-secondary/50 rounded-2xl p-1 h-10">
+              <TabsTrigger value="all" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground transition-all">Все</TabsTrigger>
+              <TabsTrigger value="income" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-500 transition-all">Доходы</TabsTrigger>
+              <TabsTrigger value="expense" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-red-500 transition-all">Расходы</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -1137,13 +1136,13 @@ export default function Home() {
           {isLoading && (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
-                  <div className="w-10 h-10 bg-secondary" />
+                <div key={i} className="flex items-center gap-3 py-3.5 px-3 animate-pulse">
+                  <div className="w-10 h-10 bg-secondary rounded-2xl" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-secondary w-3/4" />
-                    <div className="h-3 bg-secondary w-1/2" />
+                    <div className="h-4 bg-secondary rounded-lg w-3/4" />
+                    <div className="h-3 bg-secondary rounded-lg w-1/2" />
                   </div>
-                  <div className="h-4 bg-secondary w-20" />
+                  <div className="h-4 bg-secondary rounded-lg w-20" />
                 </div>
               ))}
             </div>
@@ -1151,16 +1150,18 @@ export default function Home() {
 
           {/* Empty state */}
           {!isLoading && filteredTransactions.length === 0 && (
-            <div className="text-center py-16 space-y-3">
-              <Wallet className="w-12 h-12 mx-auto text-muted-foreground" />
-              <p className="font-black text-lg uppercase tracking-tighter">Нет транзакций</p>
+            <div className="text-center py-16 space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-secondary flex items-center justify-center">
+                <Wallet className="w-7 h-7 text-muted-foreground" />
+              </div>
+              <p className="font-semibold text-base">Нет транзакций</p>
               <p className="text-sm text-muted-foreground">
                 {searchQuery ? 'Попробуйте изменить запрос' : 'Добавьте первую транзакцию'}
               </p>
               {!searchQuery && (
                 <button
                   onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
-                  className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 font-black uppercase tracking-[0.15em] text-sm hover:bg-brand-light transition-colors"
+                  className="inline-flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 font-semibold text-sm rounded-2xl hover:bg-blue-600 transition-colors pill-press"
                 >
                   <Plus className="w-4 h-4" /> Добавить
                 </button>
@@ -1171,8 +1172,8 @@ export default function Home() {
           {/* Grouped transactions */}
           {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
             <div key={dateKey}>
-              <div className="sticky top-[56px] z-10 bg-background/95 backdrop-blur-sm py-2 border-b border-border">
-                <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
+              <div className="sticky top-[60px] z-10 py-2">
+                <span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">
                   {formatFullDate(txs[0].date)}
                 </span>
               </div>
@@ -1197,7 +1198,7 @@ export default function Home() {
       {/* FAB (mobile) */}
       <button
         onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
-        className="fixed bottom-6 right-6 h-14 w-14 bg-brand text-white flex items-center justify-center shadow-lg hover:bg-brand-light transition-colors sm:hidden z-30"
+        className="fixed bottom-6 right-6 h-14 w-14 bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 hover:bg-blue-600 transition-all sm:hidden z-30 rounded-2xl pill-press"
       >
         <Plus className="w-6 h-6" />
       </button>
@@ -1206,17 +1207,17 @@ export default function Home() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 left-6 p-3 border-2 border-border hover:border-foreground bg-background z-30 transition-colors"
+          className="fixed bottom-6 left-6 p-3 glass-pill rounded-2xl z-30 pill-press transition-colors hover:bg-white/60"
         >
-          <ChevronLeft className="w-4 h-4 rotate-90" />
+          <ChevronLeft className="w-4 h-4 rotate-90 text-muted-foreground" />
         </button>
       )}
 
-      {/* Add Dialog */}
+      {/* ── Add Dialog ── */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-black uppercase tracking-tighter">Новая транзакция</DialogTitle>
+            <DialogTitle className="font-semibold text-base tracking-tight">Новая транзакция</DialogTitle>
           </DialogHeader>
           <TransactionForm
             type={formType} setType={setFormType}
@@ -1237,11 +1238,11 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* ── Edit Dialog ── */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-black uppercase tracking-tighter">Редактировать</DialogTitle>
+            <DialogTitle className="font-semibold text-base tracking-tight">Редактировать</DialogTitle>
           </DialogHeader>
           <TransactionForm
             type={editType} setType={(v) => { setEditType(v); if (v === 'expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p => ({ name: p.name, reviewCount: 0 }))) } }}
@@ -1262,32 +1263,32 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Alert Dialog */}
+      {/* ── Delete Alert Dialog ── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass-dialog rounded-3xl">
           <AlertDialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-brand text-white flex items-center justify-center">
-                <ArrowUp className="w-5 h-5 rotate-45" />
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-500" />
               </div>
-              <AlertDialogTitle className="font-black uppercase tracking-tighter">Удалить?</AlertDialogTitle>
+              <AlertDialogTitle className="font-semibold tracking-tight">Удалить?</AlertDialogTitle>
             </div>
-            <AlertDialogDescription>Это действие нельзя отменить</AlertDialogDescription>
+            <AlertDialogDescription className="text-muted-foreground">Это действие нельзя отменить</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-black uppercase tracking-[0.15em]">Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-brand text-white hover:bg-brand-dark font-black uppercase tracking-[0.15em]">
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="font-semibold rounded-2xl">Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white hover:bg-red-600 font-semibold rounded-2xl">
               Удалить
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Settings Dialog */}
+      {/* ── Settings Dialog ── */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-black uppercase tracking-tighter">Настройки площадок</DialogTitle>
+            <DialogTitle className="font-semibold text-base tracking-tight">Настройки площадок</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
@@ -1297,23 +1298,23 @@ export default function Home() {
             {/* Existing platforms */}
             <div className="space-y-2">
               {platforms.map(p => (
-                <div key={p.name} className="flex items-center gap-2 border-2 p-3">
-                  {p.icon && <PlatformIcon name={p.name} size={20} iconMap={iconMap} />}
-                  {!p.icon && <div className="w-5 h-5 bg-secondary flex items-center justify-center text-[10px] font-black">{p.name[0]}</div>}
-                  <span className="text-sm font-bold flex-1 truncate">{p.name}</span>
-                  <div className="flex items-center gap-1">
+                <div key={p.name} className="flex items-center gap-2 glass-pill rounded-2xl p-3">
+                  {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
+                  {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
+                  <span className="text-sm font-medium flex-1 truncate">{p.name}</span>
+                  <div className="flex items-center gap-1.5">
                     <Input
                       type="number"
                       min="1"
                       value={p.fee}
                       onChange={e => updatePlatformFee(p.name, parseInt(e.target.value) || 0)}
-                      className="h-8 w-20 text-sm border-2 text-center font-bold"
+                      className="h-8 w-20 text-sm rounded-xl bg-white/50 border-white/30 text-center font-semibold tabular-nums"
                     />
-                    <span className="text-xs text-muted-foreground font-medium">₽/отзыв</span>
+                    <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>
                   </div>
                   <button
                     onClick={() => removePlatform(p.name)}
-                    className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-brand transition-colors"
+                    className="p-1.5 rounded-xl hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
                     title="Удалить площадку"
                   >
                     <MinusCircle className="w-4 h-4" />
@@ -1323,17 +1324,17 @@ export default function Home() {
             </div>
 
             {/* Add new platform */}
-            <div className="border-2 border-dashed border-border p-4 space-y-3">
+            <div className="border-2 border-dashed border-border rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <PlusCircle className="w-4 h-4 text-muted-foreground" />
-                <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Добавить площадку</span>
+                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Добавить площадку</span>
               </div>
               <div className="flex items-center gap-2">
                 <Input
                   value={newPlatformName}
                   onChange={e => setNewPlatformName(e.target.value)}
                   placeholder="Название площадки"
-                  className="h-8 text-sm border-2 flex-1"
+                  className="h-9 text-sm rounded-xl bg-white/50 border-white/30 flex-1"
                   onKeyDown={e => { if (e.key === 'Enter') addPlatform() }}
                 />
                 <Input
@@ -1341,15 +1342,15 @@ export default function Home() {
                   min="1"
                   value={newPlatformFee}
                   onChange={e => setNewPlatformFee(e.target.value)}
-                  className="h-8 w-20 text-sm border-2 text-center"
+                  className="h-9 w-20 text-sm rounded-xl bg-white/50 border-white/30 text-center"
                   placeholder="₽"
                   onKeyDown={e => { if (e.key === 'Enter') addPlatform() }}
                 />
                 <Button
                   onClick={addPlatform}
-                  className="h-8 px-3 bg-foreground text-background hover:bg-foreground/90 font-black uppercase tracking-[0.15em] text-[10px]"
+                  className="h-9 px-4 bg-blue-500 text-white hover:bg-blue-600 font-semibold rounded-xl text-[12px] pill-press"
                 >
-                  <Plus className="w-3 h-3 mr-1" /> Добавить
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Добавить
                 </Button>
               </div>
             </div>
@@ -1360,7 +1361,7 @@ export default function Home() {
       {/* slideDown animation */}
       <style jsx>{`
         @keyframes slideDown {
-          from { transform: translateY(-100%); opacity: 0; }
+          from { transform: translateY(-12px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
