@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  type        String   // "income" или "expense"
+  amount      Float    // gross amount
+  taxRate     Int?     // 4 или 6 (проценты), null = нет налогового вычета
+  platforms   String?  // JSON: [{"name":"Яндекс карты","reviewCount":10},...] — только для income
+  description String
+  category    String?  // "subscriptions", "transport", и т.д. — только для expense
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
