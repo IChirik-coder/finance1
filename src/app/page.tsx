@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Plus, Search, X, ArrowUpRight, ArrowDownRight, Eye, EyeOff,
   ChevronLeft, ChevronRight, Pencil, Trash2, Loader2, Wallet,
-  TrendingUp, TrendingDown, BarChart3, ArrowUp,
+  TrendingUp, TrendingDown, BarChart3, ArrowUp, Settings, PlusCircle, MinusCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, isToday, isYesterday, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns'
@@ -19,6 +19,8 @@ import { ru } from 'date-fns/locale'
 // ──────────────────────────── Types ────────────────────────────
 
 interface PlatformEntry { name: string; reviewCount: number }
+
+interface PlatformConfig { name: string; fee: number; icon: string }
 
 interface Transaction {
   id: string
@@ -33,7 +35,7 @@ interface Transaction {
 
 // ──────────────────────────── Constants ────────────────────────────
 
-const PLATFORMS = [
+const DEFAULT_PLATFORMS: PlatformConfig[] = [
   { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
   { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
   { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
@@ -47,11 +49,37 @@ const PLATFORMS = [
   { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
   { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
   { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
-] as const
+]
 
-const PLATFORM_FEE_MAP: Record<string, number> = {}
-const PLATFORM_ICON_MAP: Record<string, string> = {}
-for (const p of PLATFORMS) { PLATFORM_FEE_MAP[p.name] = p.fee; PLATFORM_ICON_MAP[p.name] = p.icon }
+function loadPlatforms(): PlatformConfig[] {
+  if (typeof window === 'undefined') return DEFAULT_PLATFORMS
+  try {
+    const saved = localStorage.getItem('finance_platforms')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {}
+  return DEFAULT_PLATFORMS
+}
+
+function savePlatforms(platforms: PlatformConfig[]) {
+  try {
+    localStorage.setItem('finance_platforms', JSON.stringify(platforms))
+  } catch {}
+}
+
+function buildFeeMap(platforms: PlatformConfig[]): Record<string, number> {
+  const m: Record<string, number> = {}
+  for (const p of platforms) m[p.name] = p.fee
+  return m
+}
+
+function buildIconMap(platforms: PlatformConfig[]): Record<string, string> {
+  const m: Record<string, string> = {}
+  for (const p of platforms) m[p.name] = p.icon
+  return m
+}
 
 const EXPENSE_CATEGORIES = [
   { value: 'subscriptions', label: 'Подписки', icon: '📺' },
@@ -100,23 +128,23 @@ function parsePlatforms(p: string | PlatformEntry[] | null | undefined): Platfor
   try { return JSON.parse(p) } catch { return [] }
 }
 
-function getNetAmount(t: Transaction): number {
+function getNetAmount(t: Transaction, feeMap: Record<string, number>): number {
   if (t.type === 'expense') return t.amount
   let net = t.amount
   if (t.taxRate) net -= (t.taxRate / 100) * t.amount
   const platforms = parsePlatforms(t.platforms)
   for (const p of platforms) {
-    net -= (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount
+    net -= (feeMap[p.name] || 0) * p.reviewCount
   }
   return net
 }
 
-function getExecutorFee(t: Transaction): number {
+function getExecutorFee(t: Transaction, feeMap: Record<string, number>): number {
   if (t.type === 'expense') return 0
   const platforms = parsePlatforms(t.platforms)
   let fee = 0
   for (const p of platforms) {
-    fee += (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount
+    fee += (feeMap[p.name] || 0) * p.reviewCount
   }
   return fee
 }
@@ -168,19 +196,21 @@ function invalidateCache() { txCache.clear() }
 
 // ──────────────────────────── Memoized Sub-components ────────────────────────────
 
-const PlatformIcon = memo(function PlatformIcon({ name, size = 16 }: { name: string; size?: 12 | 16 | 20 }) {
-  const icon = PLATFORM_ICON_MAP[name]
+const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12 | 16 | 20; iconMap: Record<string, string> }) {
+  const icon = iconMap[name]
   if (!icon) return null
   return <img src={icon} alt={name} width={size} height={size} className="inline-block" />
 })
 
 const TransactionRow = memo(function TransactionRow({
-  t, isBalanceHidden, onEdit, onDelete,
+  t, isBalanceHidden, onEdit, onDelete, feeMap, iconMap,
 }: {
   t: Transaction
   isBalanceHidden: boolean
   onEdit: (t: Transaction) => void
   onDelete: (id: string) => void
+  feeMap: Record<string, number>
+  iconMap: Record<string, string>
 }) {
   const isIncome = t.type === 'income'
   const platforms = parsePlatforms(t.platforms)
@@ -208,7 +238,7 @@ const TransactionRow = memo(function TransactionRow({
           )}
           {platforms.map((p, i) => (
             <span key={i} className="inline-flex items-center gap-0.5 bg-foreground text-background text-[10px] px-1 py-0.5 font-medium">
-              <PlatformIcon name={p.name} size={12} />
+              <PlatformIcon name={p.name} size={12} iconMap={iconMap} />
               {p.reviewCount}
             </span>
           ))}
@@ -218,7 +248,7 @@ const TransactionRow = memo(function TransactionRow({
           <span className="text-[10px] text-muted-foreground">{formatDate(t.date)}</span>
           {isIncome && platforms.length > 0 && (
             <span className="text-[10px] text-muted-foreground">
-              (комиссии: {formatCurrency(getExecutorFee(t))})
+              (комиссии: {formatCurrency(getExecutorFee(t, feeMap))})
             </span>
           )}
         </div>
@@ -256,7 +286,7 @@ function TransactionForm({
   type, setType, amount, setAmount, description, setDescription,
   date, setDate, taxRate, setTaxRate, platforms, togglePlatform,
   setPlatformReviewCount, category, setCategory, isSubmitting,
-  onSubmit, submitLabel,
+  onSubmit, submitLabel, platformsList, feeMap, iconMap,
 }: {
   type: string; setType: (v: string) => void
   amount: string; setAmount: (v: string) => void
@@ -269,12 +299,15 @@ function TransactionForm({
   isSubmitting: boolean
   onSubmit: () => void
   submitLabel: string
+  platformsList: PlatformConfig[]
+  feeMap: Record<string, number>
+  iconMap: Record<string, string>
 }) {
   const isIncome = type === 'income'
   const selectedPlatforms = platforms.filter(p => p.reviewCount > 0)
   const numAmount = parseFloat(amount) || 0
 
-  const totalExecutorFee = selectedPlatforms.reduce((sum, p) => sum + (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount, 0)
+  const totalExecutorFee = selectedPlatforms.reduce((sum, p) => sum + (feeMap[p.name] || 0) * p.reviewCount, 0)
   const totalTax = (taxRate === '4' || taxRate === '6') ? (parseInt(taxRate) / 100) * numAmount : 0
   const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
 
@@ -345,7 +378,7 @@ function TransactionForm({
         <div>
           <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Площадки</label>
           <div className="grid grid-cols-3 gap-1.5">
-            {PLATFORMS.map(p => {
+            {platformsList.map(p => {
               const selected = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
               return (
                 <button
@@ -358,7 +391,7 @@ function TransactionForm({
                       : 'border-border hover:border-foreground'
                   }`}
                 >
-                  <PlatformIcon name={p.name} size={16} />
+                  <PlatformIcon name={p.name} size={16} iconMap={iconMap} />
                   <span className="truncate uppercase tracking-wider">{p.name}</span>
                   {selected && <span className="ml-auto text-brand-light">✓</span>}
                 </button>
@@ -374,7 +407,7 @@ function TransactionForm({
           <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Количество отзывов</label>
           {selectedPlatforms.map(p => (
             <div key={p.name} className="flex items-center gap-2 border-2 p-2">
-              <PlatformIcon name={p.name} size={20} />
+              <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
               <span className="text-xs font-medium flex-shrink-0">{p.name}</span>
               <Input
                 type="number"
@@ -384,7 +417,7 @@ function TransactionForm({
                 className="h-8 w-20 text-sm border-2"
               />
               <span className="text-[10px] text-muted-foreground">
-                {PLATFORM_FEE_MAP[p.name] || 0}₽ × {p.reviewCount} = {((PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount)}₽
+                {feeMap[p.name] || 0}₽ × {p.reviewCount} = {((feeMap[p.name] || 0) * p.reviewCount)}₽
               </span>
               <button
                 type="button"
@@ -489,6 +522,57 @@ function TransactionForm({
 export default function Home() {
   const now = new Date()
 
+  // Platform state (persisted in localStorage)
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [newPlatformName, setNewPlatformName] = useState('')
+  const [newPlatformFee, setNewPlatformFee] = useState('25')
+
+  // Load platforms from localStorage on mount
+  useEffect(() => {
+    setPlatforms(loadPlatforms())
+  }, [])
+
+  // Derived maps
+  const feeMap = useMemo(() => buildFeeMap(platforms), [platforms])
+  const iconMap = useMemo(() => buildIconMap(platforms), [platforms])
+
+  // Settings handlers
+  const updatePlatformFee = useCallback((name: string, fee: number) => {
+    setPlatforms(prev => {
+      const updated = prev.map(p => p.name === name ? { ...p, fee } : p)
+      savePlatforms(updated)
+      return updated
+    })
+  }, [])
+
+  const removePlatform = useCallback((name: string) => {
+    setPlatforms(prev => {
+      const updated = prev.filter(p => p.name !== name)
+      savePlatforms(updated)
+      return updated
+    })
+  }, [])
+
+  const addPlatform = useCallback(() => {
+    const trimmed = newPlatformName.trim()
+    if (!trimmed) { toast.error('Введите название площадки'); return }
+    if (platforms.some(p => p.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('Такая площадка уже есть')
+      return
+    }
+    const fee = parseInt(newPlatformFee) || 0
+    if (fee <= 0) { toast.error('Укажите цену больше 0'); return }
+    setPlatforms(prev => {
+      const updated = [...prev, { name: trimmed, fee, icon: '' }]
+      savePlatforms(updated)
+      return updated
+    })
+    setNewPlatformName('')
+    setNewPlatformFee('25')
+    toast.success(`Площадка «${trimmed}» добавлена`)
+  }, [newPlatformName, newPlatformFee, platforms])
+
   // State
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -511,7 +595,7 @@ export default function Home() {
   const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
   const [formTaxRate, setFormTaxRate] = useState<string>('none')
   const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>(
-    PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))
+    platforms.map(p => ({ name: p.name, reviewCount: 0 }))
   )
   const [formCategory, setFormCategory] = useState('other')
 
@@ -523,7 +607,7 @@ export default function Home() {
   const [editDate, setEditDate] = useState('')
   const [editTaxRate, setEditTaxRate] = useState<string>('none')
   const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>(
-    PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))
+    platforms.map(p => ({ name: p.name, reviewCount: 0 }))
   )
   const [editCategory, setEditCategory] = useState('other')
 
@@ -599,7 +683,7 @@ export default function Home() {
     setEditCategory(t.category || 'other')
 
     const parsedPlatforms = parsePlatforms(t.platforms)
-    setEditPlatforms(PLATFORMS.map(p => {
+    setEditPlatforms(platforms.map(p => {
       const found = parsedPlatforms.find(pp => pp.name === p.name)
       return { name: p.name, reviewCount: found ? found.reviewCount : 0 }
     }))
@@ -623,7 +707,7 @@ export default function Home() {
     setFormDescription('')
     setFormDate(format(new Date(), 'yyyy-MM-dd'))
     setFormTaxRate('none')
-    setFormPlatforms(PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 })))
+    setFormPlatforms(platforms.map(p => ({ name: p.name, reviewCount: 0 })))
     setFormCategory('other')
   }, [])
 
@@ -735,9 +819,9 @@ export default function Home() {
     const incomes = transactions.filter(t => t.type === 'income')
     const expenses = transactions.filter(t => t.type === 'expense')
 
-    const totalIncome = incomes.reduce((s, t) => s + getNetAmount(t), 0)
+    const totalIncome = incomes.reduce((s, t) => s + getNetAmount(t, feeMap), 0)
     const totalGrossIncome = incomes.reduce((s, t) => s + t.amount, 0)
-    const totalExecutorFee = incomes.reduce((s, t) => s + getExecutorFee(t), 0)
+    const totalExecutorFee = incomes.reduce((s, t) => s + getExecutorFee(t, feeMap), 0)
     const totalTax = incomes.reduce((s, t) => s + getTaxAmount(t), 0)
     const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
     const balance = totalIncome - totalExpense
@@ -746,7 +830,7 @@ export default function Home() {
     const expenseCount = expenses.length
     const avgIncome = incomeCount ? totalIncome / incomeCount : 0
     const avgExpense = expenseCount ? totalExpense / expenseCount : 0
-    const maxIncome = incomeCount ? Math.max(...incomes.map(t => getNetAmount(t))) : 0
+    const maxIncome = incomeCount ? Math.max(...incomes.map(t => getNetAmount(t, feeMap))) : 0
     const maxExpense = expenseCount ? Math.max(...expenses.map(t => t.amount)) : 0
 
     const expenseRatio = totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 0
@@ -760,7 +844,7 @@ export default function Home() {
     for (const t of transactions) {
       const day = new Date(t.date).getDate()
       if (!dailyData[day]) dailyData[day] = { income: 0, expense: 0 }
-      if (t.type === 'income') dailyData[day].income += getNetAmount(t)
+      if (t.type === 'income') dailyData[day].income += getNetAmount(t, feeMap)
       else dailyData[day].expense += t.amount
     }
 
@@ -771,7 +855,7 @@ export default function Home() {
       balance, incomeCount, expenseCount, avgIncome, avgExpense,
       maxIncome, maxExpense, expenseRatio, categoryBreakdown, dailyData, maxDaily,
     }
-  }, [transactions])
+  }, [transactions, feeMap])
 
   const filteredTransactions = useMemo(() => {
     let filtered = transactions
@@ -815,6 +899,13 @@ export default function Home() {
             <span className="text-white font-black text-sm uppercase tracking-[0.3em]">Финансы</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-white hover:opacity-70 transition-opacity"
+              title="Настройки"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
             <button
               onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchRef.current?.focus(), 100) }}
               className="p-2 text-white hover:opacity-70 transition-opacity"
@@ -1093,6 +1184,8 @@ export default function Home() {
                     isBalanceHidden={isBalanceHidden}
                     onEdit={openEditDialog}
                     onDelete={setDeleteTarget}
+                    feeMap={feeMap}
+                    iconMap={iconMap}
                   />
                 ))}
               </div>
@@ -1137,6 +1230,9 @@ export default function Home() {
             isSubmitting={isSubmitting}
             onSubmit={handleAddSubmit}
             submitLabel="Добавить"
+            platformsList={platforms}
+            feeMap={feeMap}
+            iconMap={iconMap}
           />
         </DialogContent>
       </Dialog>
@@ -1148,7 +1244,7 @@ export default function Home() {
             <DialogTitle className="font-black uppercase tracking-tighter">Редактировать</DialogTitle>
           </DialogHeader>
           <TransactionForm
-            type={editType} setType={(v) => { setEditType(v); if (v === 'expense') { setEditTaxRate('none'); setEditPlatforms(PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))) } }}
+            type={editType} setType={(v) => { setEditType(v); if (v === 'expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p => ({ name: p.name, reviewCount: 0 }))) } }}
             amount={editAmount} setAmount={setEditAmount}
             description={editDescription} setDescription={setEditDescription}
             date={editDate} setDate={setEditDate}
@@ -1159,6 +1255,9 @@ export default function Home() {
             isSubmitting={isSubmitting}
             onSubmit={handleEditSubmit}
             submitLabel="Сохранить"
+            platformsList={platforms}
+            feeMap={feeMap}
+            iconMap={iconMap}
           />
         </DialogContent>
       </Dialog>
@@ -1183,6 +1282,80 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Settings Dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase tracking-tighter">Настройки площадок</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.
+            </p>
+
+            {/* Existing platforms */}
+            <div className="space-y-2">
+              {platforms.map(p => (
+                <div key={p.name} className="flex items-center gap-2 border-2 p-3">
+                  {p.icon && <PlatformIcon name={p.name} size={20} iconMap={iconMap} />}
+                  {!p.icon && <div className="w-5 h-5 bg-secondary flex items-center justify-center text-[10px] font-black">{p.name[0]}</div>}
+                  <span className="text-sm font-bold flex-1 truncate">{p.name}</span>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={p.fee}
+                      onChange={e => updatePlatformFee(p.name, parseInt(e.target.value) || 0)}
+                      className="h-8 w-20 text-sm border-2 text-center font-bold"
+                    />
+                    <span className="text-xs text-muted-foreground font-medium">₽/отзыв</span>
+                  </div>
+                  <button
+                    onClick={() => removePlatform(p.name)}
+                    className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-brand transition-colors"
+                    title="Удалить площадку"
+                  >
+                    <MinusCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add new platform */}
+            <div className="border-2 border-dashed border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-4 h-4 text-muted-foreground" />
+                <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Добавить площадку</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newPlatformName}
+                  onChange={e => setNewPlatformName(e.target.value)}
+                  placeholder="Название площадки"
+                  className="h-8 text-sm border-2 flex-1"
+                  onKeyDown={e => { if (e.key === 'Enter') addPlatform() }}
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  value={newPlatformFee}
+                  onChange={e => setNewPlatformFee(e.target.value)}
+                  className="h-8 w-20 text-sm border-2 text-center"
+                  placeholder="₽"
+                  onKeyDown={e => { if (e.key === 'Enter') addPlatform() }}
+                />
+                <Button
+                  onClick={addPlatform}
+                  className="h-8 px-3 bg-foreground text-background hover:bg-foreground/90 font-black uppercase tracking-[0.15em] text-[10px]"
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Добавить
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* slideDown animation */}
       <style jsx>{`

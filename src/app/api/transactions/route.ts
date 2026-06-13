@@ -1,11 +1,8 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
-const VALID_PLATFORMS = [
-  'Яндекс карты', '2ГИС', 'Google карты', 'Zoon', 'Яндекс Браузер',
-  'Яндекс Услуги', 'Flamp', 'Yell', 'ВК', 'ЦИАН',
-  'Tripadvisor', 'Restaurantguru', 'Отзовик'
-]
+// Platform names are now dynamic (user can add custom platforms in settings)
+// We no longer validate against a fixed list — any platform name is accepted
 
 function validateTaxRate(taxRate: unknown, type: string): number | null {
   if (type !== 'income') return null
@@ -29,7 +26,7 @@ function validatePlatforms(platforms: unknown, type: string): string | null {
   const valid = parsed.filter((p: unknown) => {
     if (!p || typeof p !== 'object') return false
     const entry = p as Record<string, unknown>
-    return VALID_PLATFORMS.includes(entry.name as string) && Number(entry.reviewCount) > 0
+    return typeof entry.name === 'string' && entry.name.trim().length > 0 && Number(entry.reviewCount) > 0
   })
   return JSON.stringify(valid)
 }
