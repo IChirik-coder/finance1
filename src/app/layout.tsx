@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F2F2F7",
+  themeColor: "#07070F",
 };
 
 export default function RootLayout({
@@ -23,15 +23,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru" className="dark" suppressHydrationWarning>
       <body
-        className="antialiased bg-background text-foreground noise-overlay safe-bottom"
+        className="antialiased bg-background text-foreground safe-bottom"
         style={{
           fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         }}
       >
-        <div className="bg-mesh" />
+        <div className="space-bg" />
+        <div className="stars" />
         {children}
         <Toaster
           position="top-center"
@@ -40,10 +41,11 @@ export default function RootLayout({
             duration: 3000,
             style: {
               borderRadius: "16px",
-              backdropFilter: "blur(40px) saturate(1.8)",
-              background: "rgba(255,255,255,0.72)",
-              border: "1px solid rgba(255,255,255,0.45)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+              backdropFilter: "blur(24px) saturate(1.5)",
+              background: "rgba(10,10,20,0.85)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              color: "#F0F0F5",
             },
           }}
         />
