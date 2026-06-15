@@ -87,7 +87,7 @@ async function fetchCached(m: number, y: number): Promise<Transaction[]> { const
 
 // ─── Month history ───
 
-interface MonthHistoryEntry { month: number; year: number; income: number; expense: number; count: number }
+interface MonthHistoryEntry { month: number; year: number; grossIncome: number; expense: number; count: number; tax: number; platformFees: Record<string, { fee: number; reviewCount: number }> }
 let historyCache: { data: MonthHistoryEntry[]; ts: number } | null = null
 async function fetchMonthHistory(): Promise<MonthHistoryEntry[]> {
   if (historyCache && Date.now() - historyCache.ts < 30000) return historyCache.data
@@ -438,12 +438,12 @@ export default function Home() {
       if (existing) {
         return prev.map(h => h.month===m && h.year===y ? {
           ...h,
-          income: optTx.type==='income' ? h.income+optTx.amount : h.income,
+          grossIncome: optTx.type==='income' ? h.grossIncome+optTx.amount : h.grossIncome,
           expense: optTx.type==='expense' ? h.expense+optTx.amount : h.expense,
           count: h.count+1,
         } : h)
       }
-      return [...prev, { month:m, year:y, income:optTx.type==='income'?optTx.amount:0, expense:optTx.type==='expense'?optTx.amount:0, count:1 }]
+      return [...prev, { month:m, year:y, grossIncome:optTx.type==='income'?optTx.amount:0, expense:optTx.type==='expense'?optTx.amount:0, count:1, tax:0, platformFees:{} }]
     })
     // Close dialog immediately
     setIsDialogOpen(false); resetAddForm()
@@ -493,7 +493,7 @@ export default function Home() {
       if (!tx) return prev
       return prev.map(h => {
         if (h.month === new Date(tx.date).getMonth() + 1 && h.year === new Date(tx.date).getFullYear()) {
-          return { ...h, income: tx.type === 'income' ? h.income - tx.amount : h.income, expense: tx.type === 'expense' ? h.expense - tx.amount : h.expense, count: h.count - 1 }
+          return { ...h, grossIncome: tx.type === 'income' ? h.grossIncome - tx.amount : h.grossIncome, expense: tx.type === 'expense' ? h.expense - tx.amount : h.expense, count: h.count - 1 }
         }
         return h
       }).filter(h => h.count > 0)
@@ -827,9 +827,19 @@ export default function Home() {
           ) : (
             <div className="space-y-2">
               {monthHistory.map(h => {
-                const net = h.income - h.expense
+                // Calculate net income: gross - tax - executor fees
+                let netIncome = h.grossIncome
+                netIncome -= h.tax
+                for (const [name, data] of Object.entries(h.platformFees)) {
+                  netIncome -= (feeMap[name] || 0) * data.reviewCount
+                }
+                const net = netIncome - h.expense
                 const isSelected = h.month === selectedMonth && h.year === selectedYear
-                const maxVal = Math.max(...monthHistory.map(m => Math.max(m.income, m.expense)), 1)
+                const maxVal = Math.max(...monthHistory.map(m => {
+                  let ni = m.grossIncome - m.tax
+                  for (const [n, d] of Object.entries(m.platformFees)) ni -= (feeMap[n] || 0) * d.reviewCount
+                  return Math.max(ni, m.expense)
+                }), 1)
                 return (
                   <button
                     key={`${h.year}-${h.month}`}
@@ -839,13 +849,13 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(h.income)}</span>
+                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(netIncome)}</span>
                         <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 h-3">
                       <div className="flex-1 flex items-center h-full">
-                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(h.income / maxVal) * 100}%`, minWidth: h.income > 0 ? '4px' : '0'}} />
+                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(netIncome / maxVal) * 100}%`, minWidth: netIncome > 0 ? '4px' : '0'}} />
                       </div>
                       <div className="flex-1 flex items-center justify-end h-full">
                         <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
