@@ -486,6 +486,90 @@ button[class*="shrink-0"]:hover {
 
 /* ─── Form inputs ─── */
 
+/* Hide browser default number arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Stepper control: − [value] + */
+.liquid-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.liquid-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5);
+  color: rgba(59,130,246,0.8);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.liquid-stepper-btn:hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%);
+  color: rgba(59,130,246,1);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.4);
+  transform: scale(1.08);
+}
+
+.liquid-stepper-btn:active {
+  transform: scale(0.92);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.liquid-stepper-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.liquid-stepper-value {
+  width: 44px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+.liquid-stepper-value::-webkit-inner-spin-button,
+.liquid-stepper-value::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.dark .liquid-stepper-btn {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+  color: rgba(147,197,253,0.8);
+}
+
+.dark .liquid-stepper-btn:hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%);
+  color: rgba(147,197,253,1);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
 .liquid-glass-input {
   background: rgba(255,255,255,0.5);
   backdrop-filter: blur(12px) saturate(1.3);

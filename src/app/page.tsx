@@ -200,12 +200,16 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
         <div className="space-y-2">
           <label className="text-[11px] font-medium text-muted-foreground tracking-wide">Количество отзывов</label>
           {selectedPlatforms.map(p => (
-            <div key={p.name} className="flex items-center gap-2 liquid-glass rounded-2xl p-3">
+            <div key={p.name} className="flex items-center gap-3 liquid-glass rounded-2xl p-3">
               <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
               <span className="text-xs font-medium flex-shrink-0 text-foreground/70">{p.name}</span>
-              <Input type="number" min="1" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="h-8 w-20 text-sm rounded-xl liquid-glass-input tabular-nums text-foreground" />
-              <span className="text-[11px] text-muted-foreground tabular-nums">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
-              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="ml-auto p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+              <div className="liquid-stepper ml-auto">
+                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, Math.max(0, p.reviewCount - 1))}><MinusCircle /></button>
+                <input type="number" min="0" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, p.reviewCount + 1)}><PlusCircle /></button>
+              </div>
+              <span className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
+              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
             </div>
           ))}
         </div>
@@ -712,10 +716,12 @@ export default function Home() {
                   {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
                   {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
                   <span className="text-sm font-medium flex-1 truncate text-foreground/70">{p.name}</span>
-                  <div className="flex items-center gap-1.5">
-                    <Input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="h-8 w-20 text-sm rounded-xl liquid-glass-input text-center font-semibold tabular-nums text-foreground" />
-                    <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>
+                  <div className="liquid-stepper">
+                    <button onClick={() => updatePlatformFee(p.name, Math.max(1, p.fee - 25))} className="liquid-stepper-btn"><MinusCircle /></button>
+                    <input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+                    <button onClick={() => updatePlatformFee(p.name, p.fee + 25)} className="liquid-stepper-btn"><PlusCircle /></button>
                   </div>
+                  <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>
                   <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>
                 </div>
               ))}
@@ -724,7 +730,11 @@ export default function Home() {
               <div className="flex items-center gap-2"><PlusCircle className="w-4 h-4 text-muted-foreground" /><span className="text-[11px] font-medium text-muted-foreground tracking-wide">Добавить площадку</span></div>
               <div className="flex items-center gap-2">
                 <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder="Название площадки" className="h-9 text-sm rounded-xl liquid-glass-input flex-1 text-foreground placeholder:text-muted-foreground/50" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
-                <Input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="h-9 w-20 text-sm rounded-xl liquid-glass-input text-center text-foreground" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+                <div className="liquid-stepper">
+                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String(Math.max(1, (parseInt(newPlatformFee)||0) - 25)))}><MinusCircle /></button>
+                  <input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="liquid-stepper-value text-foreground" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String((parseInt(newPlatformFee)||0) + 25))}><PlusCircle /></button>
+                </div>
                 <Button onClick={addPlatform} className="h-9 px-4 liquid-glass-btn font-semibold rounded-xl text-[12px]"><Plus className="w-3.5 h-3.5 mr-1" /> Добавить</Button>
               </div>
             </div>
