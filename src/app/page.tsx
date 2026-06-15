@@ -17,7 +17,7 @@ import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
 // ─── Types ───
 
 interface PlatformEntry { name: string; reviewCount: number }
-interface PlatformConfig { name: string; fee: number; icon: string }
+interface PlatformConfig { name: string; fee: number; icon: string; active?: boolean }
 interface Transaction {
   id: string; type: 'income' | 'expense'; amount: number; description: string; date: string
   taxRate?: number | null; platforms?: PlatformEntry[] | null; category?: string | null
@@ -26,19 +26,19 @@ interface Transaction {
 // ─── Constants ───
 
 const DEFAULT_PLATFORMS: PlatformConfig[] = [
-  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
-  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
-  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
-  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
-  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
-  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
-  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
-  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
-  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
-  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
-  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
-  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
-  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
+  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png', active: true },
+  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png', active: true },
+  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png', active: true },
+  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png', active: true },
+  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png', active: true },
+  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png', active: true },
+  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png', active: true },
+  { name: 'Yell', fee: 25, icon: '/icons/yell.png', active: true },
+  { name: 'ВК', fee: 25, icon: '/icons/vk.png', active: true },
+  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png', active: true },
+  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png', active: true },
+  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png', active: true },
+  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png', active: true },
 ]
 
 function loadPlatforms(): PlatformConfig[] {
@@ -303,6 +303,29 @@ export default function Home() {
   function updatePlatformFee(name: string, fee: number) {
     setPlatforms(prev => { const u = prev.map(p => p.name===name?{...p,fee}:p); savePlatforms(u); return u })
   }
+  const [platformDeleteTarget, setPlatformDeleteTarget] = useState<string|null>(null)
+
+  function deactivatePlatform(name: string) {
+    setPlatforms(prev => {
+      const u = prev.map(p => p.name===name?{...p,active:false}:p)
+      // Move inactive to bottom
+      const active = u.filter(p => p.active !== false)
+      const inactive = u.filter(p => p.active === false)
+      const sorted = [...active, ...inactive]
+      savePlatforms(sorted); return sorted
+    })
+    setPlatformDeleteTarget(null)
+  }
+  function restorePlatform(name: string) {
+    setPlatforms(prev => {
+      const u = prev.map(p => p.name===name?{...p,active:true}:p)
+      // Re-sort: active first
+      const active = u.filter(p => p.active !== false)
+      const inactive = u.filter(p => p.active === false)
+      const sorted = [...active, ...inactive]
+      savePlatforms(sorted); return sorted
+    })
+  }
   function removePlatform(name: string) {
     setPlatforms(prev => { const u = prev.filter(p => p.name!==name); savePlatforms(u); return u })
   }
@@ -335,7 +358,7 @@ export default function Home() {
   const [formDescription, setFormDescription] = useState('')
   const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
   const [formTaxRate, setFormTaxRate] = useState<string>('none')
-  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>(platforms.map(p => ({name:p.name,reviewCount:0})))
+  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>(platforms.filter(p=>p.active!==false).map(p => ({name:p.name,reviewCount:0})))
   const [formCategory, setFormCategory] = useState('other')
 
   const [editId, setEditId] = useState('')
@@ -344,7 +367,7 @@ export default function Home() {
   const [editDescription, setEditDescription] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editTaxRate, setEditTaxRate] = useState<string>('none')
-  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>(platforms.map(p => ({name:p.name,reviewCount:0})))
+  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>(platforms.filter(p=>p.active!==false).map(p => ({name:p.name,reviewCount:0})))
   const [editCategory, setEditCategory] = useState('other')
 
   const isFetchingRef = useRef(false)
@@ -401,7 +424,7 @@ export default function Home() {
   function openEditDialog(t: Transaction) {
     setEditId(t.id); setEditType(t.type); setEditAmount(String(t.amount)); setEditDescription(t.description); setEditDate(format(new Date(t.date),'yyyy-MM-dd')); setEditTaxRate(t.taxRate?String(t.taxRate):'none'); setEditCategory(t.category||'other')
     const pp = parsePlatforms(t.platforms)
-    setEditPlatforms(platforms.map(p => { const f = pp.find(x => x.name===p.name); return {name:p.name, reviewCount:f?f.reviewCount:0} }))
+    setEditPlatforms(platforms.filter(p=>p.active!==false).map(p => { const f = pp.find(x => x.name===p.name); return {name:p.name, reviewCount:f?f.reviewCount:0} }))
     setIsEditDialogOpen(true)
   }
 
@@ -411,7 +434,7 @@ export default function Home() {
   }
 
   function resetAddForm() {
-    setFormType('income'); setFormAmount(''); setFormDescription(''); setFormDate(format(new Date(),'yyyy-MM-dd')); setFormTaxRate('none'); setFormPlatforms(platforms.map(p => ({name:p.name,reviewCount:0}))); setFormCategory('other')
+    setFormType('income'); setFormAmount(''); setFormDescription(''); setFormDate(format(new Date(),'yyyy-MM-dd')); setFormTaxRate('none'); setFormPlatforms(platforms.filter(p=>p.active!==false).map(p => ({name:p.name,reviewCount:0}))); setFormCategory('other')
   }
 
   async function handleAddSubmit() {
@@ -727,7 +750,7 @@ export default function Home() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Новая транзакция</DialogTitle></DialogHeader>
-          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms.filter(p => p.active !== false)} feeMap={feeMap} iconMap={iconMap} />
         </DialogContent>
       </Dialog>
 
@@ -735,7 +758,7 @@ export default function Home() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Редактировать</DialogTitle></DialogHeader>
-          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.filter(p=>p.active!==false).map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms.filter(p => p.active !== false)} feeMap={feeMap} iconMap={iconMap} />
         </DialogContent>
       </Dialog>
 
@@ -763,20 +786,25 @@ export default function Home() {
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
             <div className="space-y-2">
-              {platforms.map(p => (
-                <div key={p.name} className="flex items-center gap-2 liquid-glass rounded-2xl p-3">
+              {platforms.map(p => {
+                const isActive = p.active !== false
+                return (
+                <div key={p.name} className={`flex items-center gap-2 rounded-2xl p-3 transition-all duration-200 ${isActive ? 'liquid-glass' : 'liquid-glass !opacity-50 !bg-secondary/30'}`}>
                   {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
                   {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
-                  <span className="text-sm font-medium flex-1 truncate text-foreground/70">{p.name}</span>
-                  <div className="liquid-stepper">
+                  <span className={`text-sm font-medium flex-1 truncate ${isActive ? 'text-foreground/70' : 'text-muted-foreground line-through'}`}>{p.name}</span>
+                  {isActive && <div className="liquid-stepper">
                     <button onClick={() => updatePlatformFee(p.name, Math.max(1, p.fee - 25))} className="liquid-stepper-btn"><MinusCircle /></button>
                     <input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
                     <button onClick={() => updatePlatformFee(p.name, p.fee + 25)} className="liquid-stepper-btn"><PlusCircle /></button>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>
-                  <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>
+                  </div>}
+                  {isActive && <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>}
+                  {isActive && <button onClick={() => setPlatformDeleteTarget(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>}
+                  {!isActive && <button onClick={() => restorePlatform(p.name)} className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-xl hover:bg-primary/10">Восстановить</button>}
+                  {!isActive && <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить навсегда"><Trash2 className="w-3.5 h-3.5" /></button>}
                 </div>
-              ))}
+                )
+              })}
             </div>
             <div className="liquid-glass rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2"><PlusCircle className="w-4 h-4 text-muted-foreground" /><span className="text-[11px] font-medium text-muted-foreground tracking-wide">Добавить площадку</span></div>
@@ -793,6 +821,24 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Platform Delete Dialog */}
+      <AlertDialog open={!!platformDeleteTarget} onOpenChange={() => setPlatformDeleteTarget(null)}>
+        <AlertDialogContent className="liquid-glass-dialog rounded-3xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--expense-bg)] flex items-center justify-center"><MinusCircle className="w-5 h-5 text-[var(--expense-color)]" /></div>
+              <AlertDialogTitle className="font-semibold tracking-tight text-foreground">Удалить площадку?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-muted-foreground">Площадка будет скрыта из списка. Вы сможете восстановить её позже или удалить навсегда.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="font-semibold rounded-2xl bg-secondary text-foreground/60 hover:bg-secondary/80 hover:text-foreground">Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={() => platformDeleteTarget && deactivatePlatform(platformDeleteTarget)} className="bg-[var(--expense-color)] text-white hover:bg-[var(--expense-color)]/80 font-semibold rounded-2xl">Удалить</AlertDialogAction>
+            <AlertDialogAction onClick={() => platformDeleteTarget && removePlatform(platformDeleteTarget)} className="bg-destructive text-white hover:bg-destructive/80 font-semibold rounded-2xl">Удалить навсегда</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* History Dialog */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
