@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Plus, X, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight,
   Pencil, Trash2, Loader2, Wallet, TrendingUp, TrendingDown, BarChart3,
-  Settings, PlusCircle, MinusCircle, Sun, Moon,
+  Settings, PlusCircle, MinusCircle, Sun, Moon, History,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
@@ -338,6 +338,7 @@ export default function Home() {
   const [filterTab, setFilterTab] = useState<'all'|'income'|'expense'>('all')
   const [deleteTarget, setDeleteTarget] = useState<string|null>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
   const [formType, setFormType] = useState('income')
   const [formAmount, setFormAmount] = useState('')
@@ -488,6 +489,9 @@ export default function Home() {
             <span className="font-semibold text-sm tracking-tight text-foreground">Финансы</span>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => setIsHistoryOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="История">
+              <History className="w-[18px] h-[18px] text-muted-foreground" />
+            </button>
             <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Тема" suppressHydrationWarning>
               {!mounted ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
             </button>
@@ -598,48 +602,6 @@ export default function Home() {
             </div>
           )}
         </section>
-
-        {/* Month history */}
-        {monthHistory.length > 0 && (
-          <section className="mb-8 animate-fade-in-up" style={{animationDelay:'0.05s'}}>
-            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase mb-3">История по месяцам</h3>
-            <div className="space-y-2">
-              {monthHistory.map(h => {
-                const net = h.income - h.expense
-                const isSelected = h.month === selectedMonth && h.year === selectedYear
-                const maxVal = Math.max(...monthHistory.map(m => Math.max(m.income, m.expense)), 1)
-                return (
-                  <button
-                    key={`${h.year}-${h.month}`}
-                    onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year) }}
-                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'hover:bg-secondary/30'}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(h.income)}</span>
-                        <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
-                      </div>
-                    </div>
-                    {/* Bar chart */}
-                    <div className="flex items-center gap-1.5 h-3">
-                      <div className="flex-1 flex items-center h-full">
-                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(h.income / maxVal) * 100}%`, minWidth: h.income > 0 ? '4px' : '0'}} />
-                      </div>
-                      <div className="flex-1 flex items-center justify-end h-full">
-                        <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
-                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )}
 
         {/* Quick stats */}
         {transactions.length > 0 && (
@@ -798,6 +760,54 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">История по месяцам</DialogTitle></DialogHeader>
+          {monthHistory.length === 0 ? (
+            <div className="text-center py-12 space-y-3">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-secondary flex items-center justify-center"><BarChart3 className="w-6 h-6 text-muted-foreground/50" /></div>
+              <p className="text-sm text-muted-foreground">Пока нет данных</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {monthHistory.map(h => {
+                const net = h.income - h.expense
+                const isSelected = h.month === selectedMonth && h.year === selectedYear
+                const maxVal = Math.max(...monthHistory.map(m => Math.max(m.income, m.expense)), 1)
+                return (
+                  <button
+                    key={`${h.year}-${h.month}`}
+                    onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year); setIsHistoryOpen(false) }}
+                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'hover:bg-secondary/30'}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(h.income)}</span>
+                        <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 h-3">
+                      <div className="flex-1 flex items-center h-full">
+                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(h.income / maxVal) * 100}%`, minWidth: h.income > 0 ? '4px' : '0'}} />
+                      </div>
+                      <div className="flex-1 flex items-center justify-end h-full">
+                        <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
+                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
