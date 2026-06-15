@@ -485,13 +485,59 @@ export default function Home() {
         {/* Hero */}
         <section className="mb-8 animate-fade-in-up">
           {/* Month nav */}
-          <div className="flex items-center justify-between mb-6 gap-4">
-            <button onClick={goToPrevMonth} className="liquid-glass-arrow shrink-0"><ChevronLeft className="w-5 h-5" /></button>
+          <div className="flex items-center justify-between mb-6" style={{ gap: '20px' }}>
+            <button
+              onClick={goToPrevMonth}
+              className="shrink-0 month-arrow"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+                backdropFilter: 'blur(20px) saturate(1.5)',
+                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+                border: '1px solid rgba(255,255,255,0.5)',
+                borderRadius: '16px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+                color: 'rgba(59,130,246,0.75)',
+                cursor: 'pointer',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
             <div className="flex items-center gap-3 min-w-0">
               <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
               {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/15 transition-colors shrink-0">Сегодня</button>}
             </div>
-            <button onClick={goToNextMonth} className="liquid-glass-arrow shrink-0"><ChevronRight className="w-5 h-5" /></button>
+            <button
+              onClick={goToNextMonth}
+              className="shrink-0 month-arrow"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+                backdropFilter: 'blur(20px) saturate(1.5)',
+                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+                border: '1px solid rgba(255,255,255,0.5)',
+                borderRadius: '16px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+                color: 'rgba(59,130,246,0.75)',
+                cursor: 'pointer',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Balance card */}
