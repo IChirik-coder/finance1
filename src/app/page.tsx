@@ -657,28 +657,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Expense ratio */}
-          {totalIncome > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px] font-medium"><span className="text-muted-foreground">Расходы от доходов</span><span className="tabular-nums text-foreground/60">{expenseRatio.toFixed(0)}%</span></div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-500 ${expenseRatio>90?'bg-[var(--expense-color)]':expenseRatio>70?'bg-orange-400':'bg-[var(--income-color)]'}`} style={{width:`${Math.min(expenseRatio,100)}%`}} />
-              </div>
-            </div>
-          )}
         </section>
-
-        {/* Quick stats */}
-        {transactions.length > 0 && (
-          <section className="mb-8 animate-fade-in-up" style={{animationDelay:'0.1s'}}>
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Макс. доход" value={fmtCur(maxIncome)} />
-              <StatCard icon={<TrendingDown className="w-4 h-4" />} label="Макс. расход" value={fmtCur(maxExpense)} />
-              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний доход" value={fmtCur(avgIncome)} />
-              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний расход" value={fmtCur(avgExpense)} />
-            </div>
-          </section>
-        )}
 
         {/* Daily chart */}
         {Object.keys(dailyData).length > 1 && (
