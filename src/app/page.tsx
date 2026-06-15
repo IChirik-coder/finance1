@@ -200,16 +200,20 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
         <div className="space-y-2">
           <label className="text-[11px] font-medium text-muted-foreground tracking-wide">Количество отзывов</label>
           {selectedPlatforms.map(p => (
-            <div key={p.name} className="flex items-center gap-3 liquid-glass rounded-2xl p-3">
-              <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
-              <span className="text-xs font-medium flex-shrink-0 text-foreground/70">{p.name}</span>
-              <div className="liquid-stepper ml-auto">
-                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, Math.max(0, p.reviewCount - 1))}><MinusCircle /></button>
-                <input type="number" min="0" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
-                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, p.reviewCount + 1)}><PlusCircle /></button>
+            <div key={p.name} className="liquid-glass rounded-2xl p-3">
+              <div className="flex items-center gap-2.5">
+                <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
+                <span className="text-xs font-medium flex-shrink-0 text-foreground/70 truncate">{p.name}</span>
+                <div className="liquid-stepper ml-auto">
+                  <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, Math.max(0, p.reviewCount - 1))}><MinusCircle /></button>
+                  <input type="number" min="0" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+                  <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, p.reviewCount + 1)}><PlusCircle /></button>
+                </div>
+                <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="flex-shrink-0 p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
               </div>
-              <span className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
-              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+              <div className="flex items-center justify-between mt-1.5 pl-8">
+                <span className="text-[11px] text-muted-foreground tabular-nums">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
+              </div>
             </div>
           ))}
         </div>
