@@ -842,7 +842,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
-                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
+                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-gradient-blue' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
                     </div>
                   </button>
                 )
