@@ -1,0 +1,824 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef, memo, startTransition } from 'react'
+     4→     4→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+     5→     5→import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Button } from '@/components/ui/button'
+     8→     8→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     9→     9→import {
+    10→    10→  Plus, X, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight,
+    11→    11→  Pencil, Trash2, Loader2, Wallet, TrendingUp, TrendingDown, BarChart3,
+    12→    12→  Settings, PlusCircle, MinusCircle, Sun, Moon, History,
+    13→    13→} from 'lucide-react'
+    14→    14→import { toast } from 'sonner'
+    15→    15→import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
+    16→    16→
+    17→    17→// ─── Types ───
+    18→    18→
+    19→    19→interface PlatformEntry { name: string; reviewCount: number }
+    20→    20→interface PlatformConfig { name: string; fee: number; icon: string }
+    21→    21→interface Transaction {
+    22→    22→  id: string; type: 'income' | 'expense'; amount: number; description: string; date: string
+    23→    23→  taxRate?: number | null; platforms?: PlatformEntry[] | null; category?: string | null
+    24→    24→}
+    25→    25→
+    26→    26→// ─── Constants ───
+    27→    27→
+    28→    28→const DEFAULT_PLATFORMS: PlatformConfig[] = [
+    29→    29→  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
+    30→    30→  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
+    31→    31→  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
+    32→    32→  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
+    33→    33→  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
+    34→    34→  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
+    35→    35→  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
+    36→    36→  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
+    37→    37→  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
+    38→    38→  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
+    39→    39→  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
+    40→    40→  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
+    41→    41→  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
+    42→    42→]
+    43→    43→
+    44→    44→function loadPlatforms(): PlatformConfig[] {
+    45→    45→  if (typeof window === 'undefined') return DEFAULT_PLATFORMS
+    46→    46→  try { const s = localStorage.getItem('finance_platforms'); if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length > 0) return p } } catch {}
+    47→    47→  return DEFAULT_PLATFORMS
+    48→    48→}
+    49→    49→function savePlatforms(p: PlatformConfig[]) { try { localStorage.setItem('finance_platforms', JSON.stringify(p)) } catch {} }
+    50→    50→function buildFeeMap(p: PlatformConfig[]): Record<string, number> { const m: Record<string, number> = {}; for (const x of p) m[x.name] = x.fee; return m }
+    51→    51→function buildIconMap(p: PlatformConfig[]): Record<string, string> { const m: Record<string, string> = {}; for (const x of p) m[x.name] = x.icon; return m }
+    52→    52→
+    53→    53→const EXPENSE_CATEGORIES = [
+    54→    54→  { value: 'subscriptions', label: 'Подписки', icon: '📺' },
+    55→    55→  { value: 'transport', label: 'Транспорт', icon: '🚗' },
+    56→    56→  { value: 'food', label: 'Еда', icon: '🍕' },
+    57→    57→  { value: 'office', label: 'Офис', icon: '💻' },
+    58→    58→  { value: 'marketing', label: 'Маркетинг', icon: '📢' },
+    59→    59→  { value: 'taxes', label: 'Налоги', icon: '📋' },
+    60→    60→  { value: 'education', label: 'Обучение', icon: '📚' },
+    61→    61→  { value: 'other', label: 'Другое', icon: '📦' },
+    62→    62→] as const
+    63→    63→
+    64→    64→const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    65→    65→const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+    66→    66→const _cf = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 })
+    67→    67→
+    68→    68→// ─── Helpers ───
+    69→    69→
+    70→    70→function fmtCur(n: number): string {
+    71→    71→  const a = Math.abs(n); if (a >= 1_000_000) return `${(n/1_000_000).toFixed(1).replace(/\.0$/,'')} млн ₽`; if (a >= 100_000) return `${(n/1_000).toFixed(0)} тыс ₽`; return _cf.format(n)
+    72→    72→}
+    73→    73→function fmtFull(n: number) { return _cf.format(n) }
+    74→    74→function fmtDate(d: string) { const dt = new Date(d); return `${dt.getDate()} ${MONTHS_GEN[dt.getMonth()]}` }
+    75→    75→function fmtFullDate(d: string) { const dt = new Date(d); if (isToday(dt)) return 'Сегодня'; if (isYesterday(dt)) return 'Вчера'; return fmtDate(d) }
+    76→    76→function parsePlatforms(p: string | PlatformEntry[] | null | undefined): PlatformEntry[] { if (!p) return []; if (Array.isArray(p)) return p; try { return JSON.parse(p) } catch { return [] } }
+    77→    77→function getNet(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return t.amount; let n = t.amount; if (t.taxRate) n -= (t.taxRate/100)*t.amount; for (const p of parsePlatforms(t.platforms)) n -= (fm[p.name]||0)*p.reviewCount; return n }
+    78→    78→function getFee(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return 0; let f = 0; for (const p of parsePlatforms(t.platforms)) f += (fm[p.name]||0)*p.reviewCount; return f }
+    79→    79→function getTax(t: Transaction): number { if (t.type === 'expense' || !t.taxRate) return 0; return (t.taxRate/100)*t.amount }
+    80→    80→function pluralize(n: number): string { const a = Math.abs(n)%100, a1=a%10; if (a>10&&a<20) return 'записей'; if (a1>1&&a1<5) return 'записи'; if (a1===1) return 'запись'; return 'записей' }
+    81→    81→function groupByDate(txs: Transaction[]): Record<string, Transaction[]> { const g: Record<string, Transaction[]> = {}; for (const t of txs) { const k = format(new Date(t.date),'yyyy-MM-dd'); if (!g[k]) g[k]=[]; g[k].push(t) } return Object.fromEntries(Object.entries(g).sort(([a],[b])=>b.localeCompare(a))) }
+    82→    82→
+    83→    83→// ─── Cache ───
+    84→    84→
+    85→    85→const cache = new Map<string, { data: Transaction[]; ts: number }>()
+    86→    86→async function fetchCached(m: number, y: number): Promise<Transaction[]> { const k=`${y}-${m}`; const c=cache.get(k); if (c&&Date.now()-c.ts<30000) return c.data; const r=await fetch(`/api/transactions?month=${m}&year=${y}`); if (!r.ok) throw new Error(); const d=await r.json(); cache.set(k,{data:d,ts:Date.now()}); return d }
+    87→    87→
+    88→    88→// ─── Month history ───
+    89→    89→
+    90→    90→interface MonthHistoryEntry { month: number; year: number; income: number; expense: number; count: number }
+    91→    91→let historyCache: { data: MonthHistoryEntry[]; ts: number } | null = null
+    92→    92→async function fetchMonthHistory(): Promise<MonthHistoryEntry[]> {
+    93→    93→  if (historyCache && Date.now() - historyCache.ts < 30000) return historyCache.data
+    94→    94→  const r = await fetch('/api/transactions/history')
+    95→    95→  if (!r.ok) throw new Error()
+    96→    96→  const d = await r.json()
+    97→    97→  historyCache = { data: d, ts: Date.now() }
+    98→    98→  return d
+    99→    99→}
+   100→   100→function invalidateHistoryCache() { historyCache = null }
+   101→   101→function invalidateCache() { cache.clear() }
+   102→   102→
+   103→   103→// ─── Sub-components ───
+   104→   104→
+   105→   105→const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12|16|20|24; iconMap: Record<string,string> }) {
+   106→   106→  const icon = iconMap[name]; if (!icon) return null; return <img src={icon} alt={name} width={size} height={size} className="inline-block rounded" />
+   107→   107→})
+   108→   108→
+   109→   109→const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMap, iconMap }: {
+   110→   110→  t: Transaction; onEdit: (t: Transaction) => void; onDelete: (id: string) => void; feeMap: Record<string,number>; iconMap: Record<string,string>
+   111→   111→}) {
+   112→   112→  const isIncome = t.type === 'income'
+   113→   113→  const platforms = parsePlatforms(t.platforms)
+   114→   114→
+   115→   115→  return (
+   116→   116→    <div className="transaction-row group">
+   117→   117→      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl ${
+   118→   118→        isIncome ? 'bg-[var(--income-bg)] text-[var(--income-color)]' : 'bg-[var(--expense-bg)] text-[var(--expense-color)]'
+   119→   119→      }`}>
+   120→   120→        {isIncome ? <ArrowUpRight className="w-4.5 h-4.5" /> : <ArrowDownRight className="w-4.5 h-4.5" />}
+   121→   121→      </div>
+   122→   122→      <div className="flex-1 min-w-0">
+   123→   123→        <div className="font-medium text-sm text-foreground truncate">{t.description}</div>
+   124→   124→        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+   125→   125→          {platforms.map((p, i) => (
+   126→   126→            <span key={i} className="inline-flex items-center gap-1 bg-secondary text-muted-foreground text-[11px] px-2 py-0.5 rounded-full font-medium">
+   127→   127→              <PlatformIcon name={p.name} size={12} iconMap={iconMap} />{p.reviewCount}
+   128→   128→            </span>
+   129→   129→          ))}
+   130→   130→          {isIncome && t.taxRate && <span className="bg-primary/15 text-primary text-[11px] px-2 py-0.5 rounded-full font-medium">-{t.taxRate}%</span>}
+   131→   131→          <span className="text-[11px] text-muted-foreground">{fmtDate(t.date)}</span>
+   132→   132→          {isIncome && platforms.length > 0 && <span className="text-[11px] text-muted-foreground">(комиссии: {fmtCur(getFee(t, feeMap))})</span>}
+   133→   133→        </div>
+   134→   134→      </div>
+   135→   135→      <div className="flex-shrink-0 flex items-center gap-2">
+   136→   136→        <span className={`font-semibold text-sm tabular-nums ${isIncome ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>
+   137→   137→          {`${isIncome ? '+' : '−'}${fmtCur(t.amount)}`}
+   138→   138→        </span>
+   139→   139→        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+   140→   140→          <button onClick={() => onEdit(t)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+   141→   141→          <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+   142→   142→        </div>
+   143→   143→      </div>
+   144→   144→    </div>
+   145→   145→  )
+   146→   146→})
+   147→   147→
+   148→   148→const StatCard = memo(function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+   149→   149→  return (
+   150→   150→    <div className="liquid-glass rounded-2xl p-4 space-y-1.5">
+   151→   151→      <div className="flex items-center gap-2"><span className="text-primary">{icon}</span><span className="text-[11px] font-medium text-muted-foreground tracking-wide">{label}</span></div>
+   152→   152→      <div className="font-semibold text-lg tabular-nums text-foreground">{value}</div>
+   153→   153→    </div>
+   154→   154→  )
+   155→   155→})
+   156→   156→
+   157→   157→// ─── Transaction Form ───
+   158→   158→
+   159→   159→function TransactionForm({ type, setType, amount, setAmount, description, setDescription, date, setDate, taxRate, setTaxRate, platforms, togglePlatform, setPlatformReviewCount, category, setCategory, isSubmitting, onSubmit, submitLabel, platformsList, feeMap, iconMap }: {
+   160→   160→  type: string; setType: (v: string) => void; amount: string; setAmount: (v: string) => void; description: string; setDescription: (v: string) => void; date: string; setDate: (v: string) => void; taxRate: string; setTaxRate: (v: string) => void; platforms: PlatformEntry[]; togglePlatform: (name: string) => void; setPlatformReviewCount: (name: string, count: number) => void; category: string; setCategory: (v: string) => void; isSubmitting: boolean; onSubmit: () => void; submitLabel: string; platformsList: PlatformConfig[]; feeMap: Record<string,number>; iconMap: Record<string,string>
+   161→   161→}) {
+   162→   162→  const isIncome = type === 'income'
+   163→   163→  const selectedPlatforms = platforms.filter(p => p.reviewCount > 0)
+   164→   164→  const numAmount = parseFloat(amount) || 0
+   165→   165→  const totalExecutorFee = selectedPlatforms.reduce((s, p) => s + (feeMap[p.name]||0)*p.reviewCount, 0)
+   166→   166→  const totalTax = (taxRate==='4'||taxRate==='6') ? (parseInt(taxRate)/100)*numAmount : 0
+   167→   167→  const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
+   168→   168→
+   169→   169→  return (
+   170→   170→    <div className="space-y-5">
+   171→   171→      {/* Type toggle */}
+   172→   172→      <div className="flex liquid-glass rounded-2xl p-1 gap-1">
+   173→   173→        <button type="button" onClick={() => setType('income')} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${isIncome ? 'liquid-glass-green !rounded-xl' : 'text-muted-foreground hover:text-foreground/60'}`}>Доход</button>
+   174→   174→        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${!isIncome ? 'liquid-glass-red !rounded-xl' : 'text-muted-foreground hover:text-foreground/60'}`}>Расход</button>
+   175→   175→      </div>
+   176→   176→      {/* Amount */}
+   177→   177→      <div className="relative">
+   178→   178→        <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl font-semibold h-16 pr-12 rounded-2xl liquid-glass-input tabular-nums text-foreground" min="0" step="any" />
+   179→   179→        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">₽</span>
+   180→   180→      </div>
+   181→   181→
+   182→   182→      {/* Platforms */}
+   183→   183→      {isIncome && (
+   184→   184→        <div>
+   185→   185→          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Площадки</label>
+   186→   186→          <div className="grid grid-cols-3 gap-2">
+   187→   187→            {platformsList.map(p => {
+   188→   188→              const sel = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
+   189→   189→              return (
+   190→   190→                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${sel ? 'liquid-glass-green !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+   191→   191→                  <PlatformIcon name={p.name} size={16} iconMap={iconMap} /><span className="truncate">{p.name}</span>{sel && <span className="ml-auto text-[var(--income-color)]/60">✓</span>}
+   192→   192→                </button>
+   193→   193→              )
+   194→   194→            })}
+   195→   195→          </div>
+   196→   196→        </div>
+   197→   197→      )}
+   198→   198→      {/* Review counts */}
+   199→   199→      {isIncome && selectedPlatforms.length > 0 && (
+   200→   200→        <div className="space-y-2">
+   201→   201→          <label className="text-[11px] font-medium text-muted-foreground tracking-wide">Количество отзывов</label>
+   202→   202→          {selectedPlatforms.map(p => (
+   203→   203→            <div key={p.name} className="flex items-center gap-3 liquid-glass rounded-2xl p-3">
+   204→   204→              <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
+   205→   205→              <span className="text-xs font-medium flex-shrink-0 text-foreground/70">{p.name}</span>
+   206→   206→              <div className="liquid-stepper ml-auto">
+   207→   207→                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, Math.max(0, p.reviewCount - 1))}><MinusCircle /></button>
+   208→   208→                <input type="number" min="0" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+   209→   209→                <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, p.reviewCount + 1)}><PlusCircle /></button>
+   210→   210→              </div>
+   211→   211→              <span className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
+   212→   212→              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+   213→   213→            </div>
+   214→   214→          ))}
+   215→   215→        </div>
+   216→   216→      )}
+   217→   217→      {/* Tax */}
+   218→   218→      {isIncome && (
+   219→   219→        <div>
+   220→   220→          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Налоговый вычет</label>
+   221→   221→          <div className="flex liquid-glass rounded-2xl p-1 gap-1">
+   222→   222→            {(['none','4','6'] as const).map(rate => (
+   223→   223→              <button key={rate} type="button" onClick={() => setTaxRate(rate)} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${taxRate===rate ? (rate==='none' ? 'liquid-glass-sm !rounded-xl !bg-secondary text-foreground' : 'liquid-glass-blue !rounded-xl font-bold') : 'text-muted-foreground hover:text-foreground/60'}`}>
+   224→   224→                {rate==='none' ? 'Без вычета' : `${rate}%`}
+   225→   225→              </button>
+   226→   226→            ))}
+   227→   227→          </div>
+   228→   228→        </div>
+   229→   229→      )}
+   230→   230→      {/* Net calculation */}
+   231→   231→      {isIncome && numAmount > 0 && (
+   232→   232→        <div className="liquid-glass-blue rounded-2xl p-4 space-y-2.5">
+   233→   233→          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Сумма</span><span className="font-medium tabular-nums text-foreground/80">{fmtFull(numAmount)}</span></div>
+   234→   234→          {totalTax > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Налог</span><span className="font-medium text-[var(--expense-color)] tabular-nums">−{fmtFull(totalTax)}</span></div>}
+   235→   235→          {totalExecutorFee > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Исполнители</span><span className="font-medium text-[var(--expense-color)] tabular-nums">−{fmtFull(totalExecutorFee)}</span></div>}
+   236→   236→          <div className="section-divider !my-2" />
+   237→   237→          <div className="flex justify-between text-sm"><span className="font-semibold text-foreground/60">К выдаче</span><span className="font-bold text-lg text-[var(--income-color)] tabular-nums">{fmtFull(netAmount)}</span></div>
+   238→   238→        </div>
+   239→   239→      )}
+   240→   240→      {/* Description & Date */}
+   241→   241→      <div><label className="text-[11px] font-medium text-muted-foreground mb-1.5 block tracking-wide">Описание</label><Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Например: Зарплата за январь" className="rounded-2xl liquid-glass-input text-foreground placeholder:text-muted-foreground/50" /></div>
+   242→   242→      <div><label className="text-[11px] font-medium text-muted-foreground mb-1.5 block tracking-wide">Дата</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-2xl liquid-glass-input text-foreground" /></div>
+   243→   243→      {/* Submit */}
+   244→   244→      <Button onClick={onSubmit} disabled={isSubmitting} className="w-full h-12 font-semibold rounded-2xl text-sm liquid-glass-btn">
+   245→   245→        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : submitLabel}
+   246→   246→      </Button>
+   247→   247→    </div>
+   248→   248→  )
+   249→   249→}
+   250→   250→
+   251→   251→// ─── Main ───
+   252→   252→
+   253→   253→export default function Home() {
+   254→   254→  const now = new Date()
+   255→   255→
+   256→   256→  const [mounted, setMounted] = useState(false)
+   257→   257→  const [isDark, setIsDark] = useState(false) // SSR default — светлая тема по умолчанию
+   258→   258→  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
+   259→   259→
+   260→   260→  useEffect(() => {
+   261→   261→    // Read real theme and platforms from localStorage after mount
+   262→   262→    try {
+   263→   263→      const saved = localStorage.getItem('finance_theme')
+   264→   264→      const dark = saved === 'dark'
+   265→   265→      startTransition(() => { setIsDark(dark) })
+   266→   266→      if (dark) document.documentElement.classList.add('dark')
+   267→   267→      else document.documentElement.classList.remove('dark')
+   268→   268→    } catch {
+   269→   269→      // По умолчанию — светлая тема, не добавляем 'dark'
+   270→   270→    }
+   271→   271→    // Load custom platforms from localStorage
+   272→   272→    try {
+   273→   273→      const s = localStorage.getItem('finance_platforms')
+   274→   274→      if (s) {
+   275→   275→        const p = JSON.parse(s)
+   276→   276→        if (Array.isArray(p) && p.length > 0) startTransition(() => { setPlatforms(p) })
+   277→   277→      }
+   278→   278→    } catch {}
+   279→   279→    startTransition(() => { setMounted(true) })
+   280→   280→  }, [])
+   281→   281→
+   282→   282→  useEffect(() => {
+   283→   283→    if (!mounted) return
+   284→   284→    if (isDark) {
+   285→   285→      document.documentElement.classList.add('dark')
+   286→   286→    } else {
+   287→   287→      document.documentElement.classList.remove('dark')
+   288→   288→    }
+   289→   289→    try { localStorage.setItem('finance_theme', isDark ? 'dark' : 'light') } catch {}
+   290→   290→  }, [isDark, mounted])
+   291→   291→
+   292→   292→  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+   293→   293→  const [newPlatformName, setNewPlatformName] = useState('')
+   294→   294→  const [newPlatformFee, setNewPlatformFee] = useState('25')
+   295→   295→
+   296→   296→  const feeMap = buildFeeMap(platforms)
+   297→   297→  const iconMap = buildIconMap(platforms)
+   298→   298→
+   299→   299→  function updatePlatformFee(name: string, fee: number) {
+   300→   300→    setPlatforms(prev => { const u = prev.map(p => p.name===name?{...p,fee}:p); savePlatforms(u); return u })
+   301→   301→  }
+   302→   302→  function removePlatform(name: string) {
+   303→   303→    setPlatforms(prev => { const u = prev.filter(p => p.name!==name); savePlatforms(u); return u })
+   304→   304→  }
+   305→   305→  function addPlatform() {
+   306→   306→    const t = newPlatformName.trim()
+   307→   307→    if (!t) { toast.error('Введите название площадки'); return }
+   308→   308→    if (platforms.some(p => p.name.toLowerCase()===t.toLowerCase())) { toast.error('Такая площадка уже есть'); return }
+   309→   309→    const f = parseInt(newPlatformFee)||0
+   310→   310→    if (f<=0) { toast.error('Укажите цену больше 0'); return }
+   311→   311→    setPlatforms(prev => { const u = [...prev, {name:t,fee:f,icon:''}]; savePlatforms(u); return u })
+   312→   312→    setNewPlatformName(''); setNewPlatformFee('25')
+   313→   313→    toast.success(`Площадка «${t}» добавлена`)
+   314→   314→  }
+   315→   315→
+   316→   316→  const [transactions, setTransactions] = useState<Transaction[]>([])
+   317→   317→  const [monthHistory, setMonthHistory] = useState<MonthHistoryEntry[]>([])
+   318→   318→  const [isLoading, setIsLoading] = useState(true)
+   319→   319→  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()+1)
+   320→   320→  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+   321→   321→  const [isDialogOpen, setIsDialogOpen] = useState(false)
+   322→   322→  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+   323→   323→  const [isSubmitting, setIsSubmitting] = useState(false)
+   324→   324→  const [filterTab, setFilterTab] = useState<'all'|'income'|'expense'>('all')
+   325→   325→  const [deleteTarget, setDeleteTarget] = useState<string|null>(null)
+   326→   326→  const [showScrollTop, setShowScrollTop] = useState(false)
+   327→   327→  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+   328→   328→
+   329→   329→  const [formType, setFormType] = useState('income')
+   330→   330→  const [formAmount, setFormAmount] = useState('')
+   331→   331→  const [formDescription, setFormDescription] = useState('')
+   332→   332→  const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
+   333→   333→  const [formTaxRate, setFormTaxRate] = useState<string>('none')
+   334→   334→  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>(platforms.map(p => ({name:p.name,reviewCount:0})))
+   335→   335→  const [formCategory, setFormCategory] = useState('other')
+   336→   336→
+   337→   337→  const [editId, setEditId] = useState('')
+   338→   338→  const [editType, setEditType] = useState('income')
+   339→   339→  const [editAmount, setEditAmount] = useState('')
+   340→   340→  const [editDescription, setEditDescription] = useState('')
+   341→   341→  const [editDate, setEditDate] = useState('')
+   342→   342→  const [editTaxRate, setEditTaxRate] = useState<string>('none')
+   343→   343→  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>(platforms.map(p => ({name:p.name,reviewCount:0})))
+   344→   344→  const [editCategory, setEditCategory] = useState('other')
+   345→   345→
+   346→   346→  const isFetchingRef = useRef(false)
+   347→   347→
+   348→   348→  useEffect(() => {
+   349→   349→    let rafId: number
+   350→   350→    const h = () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(() => setShowScrollTop(window.scrollY > 400)) }
+   351→   351→    window.addEventListener('scroll', h, {passive:true})
+   352→   352→    return () => { window.removeEventListener('scroll', h); cancelAnimationFrame(rafId) }
+   353→   353→  }, [])
+   354→   354→
+   355→   355→  async function refreshData() {
+   356→   356→    invalidateCache()
+   357→   357→    invalidateHistoryCache()
+   358→   358→    if (isFetchingRef.current) return
+   359→   359→    isFetchingRef.current = true
+   360→   360→    setIsLoading(true)
+   361→   361→    try {
+   362→   362→      const [d, h] = await Promise.all([fetchCached(selectedMonth, selectedYear), fetchMonthHistory()])
+   363→   363→      setTransactions(d)
+   364→   364→      setMonthHistory(h)
+   365→   365→    } catch {
+   366→   366→      toast.error('Ошибка загрузки')
+   367→   367→    } finally {
+   368→   368→      setIsLoading(false)
+   369→   369→      isFetchingRef.current = false
+   370→   370→    }
+   371→   371→  }
+   372→   372→
+   373→   373→  // Force refresh — always runs, no loading spinner, no guard
+   374→   374→  async function forceRefresh() {
+   375→   375→    invalidateCache()
+   376→   376→    invalidateHistoryCache()
+   377→   377→    isFetchingRef.current = false
+   378→   378→    try {
+   379→   379→      const [d, h] = await Promise.all([fetchCached(selectedMonth, selectedYear), fetchMonthHistory()])
+   380→   380→      setTransactions(d)
+   381→   381→      setMonthHistory(h)
+   382→   382→    } catch {
+   383→   383→      // Silent — UI already updated optimistically
+   384→   384→    }
+   385→   385→  }
+   386→   386→
+   387→   387→  useEffect(() => {
+   388→   388→    const id = requestAnimationFrame(() => refreshData())
+   389→   389→    return () => cancelAnimationFrame(id)
+   390→   390→  }, [selectedMonth, selectedYear])
+   391→   391→
+   392→   392→  function togglePlatform(name: string) { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }
+   393→   393→  function setPlatformReviewCount(name: string, count: number) { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }
+   394→   394→  function toggleEditPlatform(name: string) { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }
+   395→   395→  function setEditPlatformReviewCount(name: string, count: number) { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }
+   396→   396→
+   397→   397→  function openEditDialog(t: Transaction) {
+   398→   398→    setEditId(t.id); setEditType(t.type); setEditAmount(String(t.amount)); setEditDescription(t.description); setEditDate(format(new Date(t.date),'yyyy-MM-dd')); setEditTaxRate(t.taxRate?String(t.taxRate):'none'); setEditCategory(t.category||'other')
+   399→   399→    const pp = parsePlatforms(t.platforms)
+   400→   400→    setEditPlatforms(platforms.map(p => { const f = pp.find(x => x.name===p.name); return {name:p.name, reviewCount:f?f.reviewCount:0} }))
+   401→   401→    setIsEditDialogOpen(true)
+   402→   402→  }
+   403→   403→
+   404→   404→  function validateForm(mode: 'add'|'edit'): string|null {
+   405→   405→    const a = mode==='add'?formAmount:editAmount; const d = mode==='add'?formDescription:editDescription
+   406→   406→    if (!parseFloat(a)||parseFloat(a)<=0) return 'Укажите сумму'; if (!d.trim()) return 'Укажите описание'; return null
+   407→   407→  }
+   408→   408→
+   409→   409→  function resetAddForm() {
+   410→   410→    setFormType('income'); setFormAmount(''); setFormDescription(''); setFormDate(format(new Date(),'yyyy-MM-dd')); setFormTaxRate('none'); setFormPlatforms(platforms.map(p => ({name:p.name,reviewCount:0}))); setFormCategory('other')
+   411→   411→  }
+   412→   412→
+   413→   413→  async function handleAddSubmit() {
+   414→   414→    const e = validateForm('add'); if (e) { toast.error(e); return }
+   415→   415→    setIsSubmitting(true)
+   416→   416→    // Close dialog immediately
+   417→   417→    setIsDialogOpen(false); resetAddForm()
+   418→   418→    try {
+   419→   419→      const sp = formPlatforms.filter(p => p.reviewCount>0)
+   420→   420→      const r = await fetch('/api/transactions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:formType, amount:parseFloat(formAmount), description:formDescription, date:formDate||new Date().toISOString(), taxRate:formTaxRate==='none'?null:parseInt(formTaxRate), platforms:formType==='income'&&sp.length>0?sp:null, category:formType==='expense'?formCategory:null }) })
+   421→   421→      if (!r.ok) throw new Error()
+   422→   422→      toast.success('Транзакция добавлена')
+   423→   423→      await forceRefresh()
+   424→   424→    } catch { toast.error('Ошибка при добавлении') } finally { setIsSubmitting(false) }
+   425→   425→  }
+   426→   426→
+   427→   427→  async function handleEditSubmit() {
+   428→   428→    const e = validateForm('edit'); if (e) { toast.error(e); return }
+   429→   429→    setIsSubmitting(true)
+   430→   430→    // Close dialog immediately
+   431→   431→    setIsEditDialogOpen(false)
+   432→   432→    try {
+   433→   433→      const sp = editPlatforms.filter(p => p.reviewCount>0)
+   434→   434→      const r = await fetch('/api/transactions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:editId, type:editType, amount:parseFloat(editAmount), description:editDescription, date:editDate||new Date().toISOString(), taxRate:editTaxRate==='none'?null:parseInt(editTaxRate), platforms:editType==='income'&&sp.length>0?sp:null, category:editType==='expense'?editCategory:null }) })
+   435→   435→      if (!r.ok) throw new Error()
+   436→   436→      toast.success('Транзакция обновлена')
+   437→   437→      await forceRefresh()
+   438→   438→    } catch { toast.error('Ошибка при обновлении'); refreshData() } finally { setIsSubmitting(false) }
+   439→   439→  }
+   440→   440→
+   441→   441→  async function handleDelete() {
+   442→   442→    if (!deleteTarget) return
+   443→   443→    const id = deleteTarget
+   444→   444→    // Optimistic: remove from UI immediately
+   445→   445→    setDeleteTarget(null)
+   446→   446→    setTransactions(prev => prev.filter(t => t.id !== id))
+   447→   447→    setMonthHistory(prev => {
+   448→   448→      const tx = transactions.find(t => t.id === id)
+   449→   449→      if (!tx) return prev
+   450→   450→      return prev.map(h => {
+   451→   451→        if (h.month === new Date(tx.date).getMonth() + 1 && h.year === new Date(tx.date).getFullYear()) {
+   452→   452→          return { ...h, income: tx.type === 'income' ? h.income - tx.amount : h.income, expense: tx.type === 'expense' ? h.expense - tx.amount : h.expense, count: h.count - 1 }
+   453→   453→        }
+   454→   454→        return h
+   455→   455→      }).filter(h => h.count > 0)
+   456→   456→    })
+   457→   457→    try {
+   458→   458→      const r = await fetch(`/api/transactions?id=${id}`, {method:'DELETE'})
+   459→   459→      if (!r.ok) throw new Error()
+   460→   460→      toast.success('Транзакция удалена')
+   461→   461→      await forceRefresh()
+   462→   462→    } catch {
+   463→   463→      toast.error('Ошибка при удалении')
+   464→   464→      refreshData()
+   465→   465→    }
+   466→   466→  }
+   467→   467→
+   468→   468→  function goToPrevMonth() { setSelectedMonth(prev => { if (prev===1) { setSelectedYear(y=>y-1); return 12 } return prev-1 }) }
+   469→   469→  function goToNextMonth() { setSelectedMonth(prev => { if (prev===12) { setSelectedYear(y=>y+1); return 1 } return prev+1 }) }
+   470→   470→  function goToCurrentMonth() { const n = new Date(); setSelectedMonth(n.getMonth()+1); setSelectedYear(n.getFullYear()) }
+   471→   471→
+   472→   472→  const inc = transactions.filter(t => t.type==='income')
+   473→   473→  const exp = transactions.filter(t => t.type==='expense')
+   474→   474→  const totalIncome = inc.reduce((s,t) => s+getNet(t,feeMap),0)
+   475→   475→  const totalGrossIncome = inc.reduce((s,t)=>s+t.amount,0)
+   476→   476→  const totalExecutorFee = inc.reduce((s,t)=>s+getFee(t,feeMap),0)
+   477→   477→  const totalTax = inc.reduce((s,t)=>s+getTax(t),0)
+   478→   478→  const totalExpense = exp.reduce((s,t)=>s+t.amount,0)
+   479→   479→  const balance = totalIncome-totalExpense
+   480→   480→  const incomeCount = inc.length
+   481→   481→  const expenseCount = exp.length
+   482→   482→  const avgIncome = incomeCount?totalIncome/incomeCount:0
+   483→   483→  const avgExpense = expenseCount?totalExpense/expenseCount:0
+   484→   484→  const maxIncome = incomeCount?Math.max(...inc.map(t=>getNet(t,feeMap))):0
+   485→   485→  const maxExpense = expenseCount?Math.max(...exp.map(t=>t.amount)):0
+   486→   486→  const expenseRatio = totalIncome>0?(totalExpense/totalIncome)*100:0
+   487→   487→  const categoryBreakdown: Record<string,number> = {}
+   488→   488→  for (const t of exp) { if (t.category) categoryBreakdown[t.category]=(categoryBreakdown[t.category]||0)+t.amount }
+   489→   489→  const dailyData: Record<number,{income:number;expense:number}> = {}
+   490→   490→  for (const t of transactions) { const d=new Date(t.date).getDate(); if (!dailyData[d]) dailyData[d]={income:0,expense:0}; if (t.type==='income') dailyData[d].income+=getNet(t,feeMap); else dailyData[d].expense+=t.amount }
+   491→   491→  const maxDaily = Math.max(...Object.values(dailyData).flatMap(d=>[d.income,d.expense]),0)
+   492→   492→
+   493→   493→  let filteredTransactions = transactions
+   494→   494→  if (filterTab==='income') filteredTransactions=filteredTransactions.filter(t=>t.type==='income')
+   495→   495→  if (filterTab==='expense') filteredTransactions=filteredTransactions.filter(t=>t.type==='expense')
+   496→   496→  const groupedTransactions = groupByDate(filteredTransactions)
+   497→   497→  const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth-1))
+   498→   498→  const chartDays = Array.from({length:daysInMonth},(_,i)=>i+1)
+   499→   499→  const isCurrentMonth = selectedMonth===now.getMonth()+1 && selectedYear===now.getFullYear()
+   500→   500→
+   501→   501→  return (
+   502→   502→    <div className="min-h-screen">
+   503→   503→      {/* ── Nav bar ── */}
+   504→   504→      <nav className="nav-bar">
+   505→   505→        <div className="max-w-lg mx-auto px-4 h-12 flex items-center justify-between">
+   506→   506→          <div className="flex items-center gap-2.5">
+   507→   507→            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center">
+   508→   508→              <span className="text-white text-[11px] font-bold">₽</span>
+   509→   509→            </div>
+   510→   510→            <span className="font-semibold text-sm tracking-tight text-foreground">Финансы</span>
+   511→   511→          </div>
+   512→   512→          <div className="flex items-center gap-1">
+   513→   513→            <button onClick={() => setIsHistoryOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="История">
+   514→   514→              <History className="w-[18px] h-[18px] text-muted-foreground" />
+   515→   515→            </button>
+   516→   516→            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Тема" suppressHydrationWarning>
+   517→   517→              {!mounted ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
+   518→   518→            </button>
+   519→   519→            <button onClick={() => setIsSettingsOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Настройки">
+   520→   520→              <Settings className="w-[18px] h-[18px] text-muted-foreground" />
+   521→   521→            </button>
+   522→   522→            <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="liquid-glass-sm !px-3 !py-2 !rounded-xl !bg-primary !text-primary-foreground !border-primary/50 transition-colors" title="Добавить">
+   523→   523→              <Plus className="w-[18px] h-[18px]" />
+   524→   524→            </button>
+   525→   525→          </div>
+   526→   526→        </div>
+   527→   527→      </nav>
+   528→   528→
+   529→   529→      {/* ── Main ── */}
+   530→   530→      <main className="max-w-lg mx-auto px-4 pt-20 pb-28">
+   531→   531→        {/* Hero */}
+   532→   532→        <section className="mb-8 animate-fade-in-up">
+   533→   533→          {/* Month nav */}
+   534→   534→          <div className="flex items-center justify-between mb-6" style={{ gap: '20px' }}>
+   535→   535→            <button
+   536→   536→              onClick={goToPrevMonth}
+   537→   537→              className="shrink-0 month-arrow"
+   538→   538→              style={{
+   539→   539→                display: 'flex',
+   540→   540→                alignItems: 'center',
+   541→   541→                justifyContent: 'center',
+   542→   542→                width: '48px',
+   543→   543→                height: '48px',
+   544→   544→                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+   545→   545→                backdropFilter: 'blur(20px) saturate(1.5)',
+   546→   546→                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+   547→   547→                border: '1px solid rgba(255,255,255,0.5)',
+   548→   548→                borderRadius: '16px',
+   549→   549→                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+   550→   550→                color: 'rgba(59,130,246,0.75)',
+   551→   551→                cursor: 'pointer',
+   552→   552→                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+   553→   553→                position: 'relative',
+   554→   554→                overflow: 'hidden',
+   555→   555→              }}
+   556→   556→            >
+   557→   557→              <ChevronLeft className="w-5 h-5" />
+   558→   558→            </button>
+   559→   559→            <div className="flex items-center gap-3 min-w-0">
+   560→   560→              <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
+   561→   561→              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/15 transition-colors shrink-0">Сегодня</button>}
+   562→   562→            </div>
+   563→   563→            <button
+   564→   564→              onClick={goToNextMonth}
+   565→   565→              className="shrink-0 month-arrow"
+   566→   566→              style={{
+   567→   567→                display: 'flex',
+   568→   568→                alignItems: 'center',
+   569→   569→                justifyContent: 'center',
+   570→   570→                width: '48px',
+   571→   571→                height: '48px',
+   572→   572→                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+   573→   573→                backdropFilter: 'blur(20px) saturate(1.5)',
+   574→   574→                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+   575→   575→                border: '1px solid rgba(255,255,255,0.5)',
+   576→   576→                borderRadius: '16px',
+   577→   577→                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+   578→   578→                color: 'rgba(59,130,246,0.75)',
+   579→   579→                cursor: 'pointer',
+   580→   580→                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+   581→   581→                position: 'relative',
+   582→   582→                overflow: 'hidden',
+   583→   583→              }}
+   584→   584→            >
+   585→   585→              <ChevronRight className="w-5 h-5" />
+   586→   586→            </button>
+   587→   587→          </div>
+   588→   588→
+   589→   589→          {/* Balance card */}
+   590→   590→          <div className="liquid-glass-hero rounded-3xl p-6 mb-5">
+   591→   591→            <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Баланс</span>
+   592→   592→            <div className="font-bold text-5xl sm:text-6xl tracking-tight tabular-nums text-gradient-blue mt-1">
+   593→   593→              {fmtCur(balance)}
+   594→   594→            </div>
+   595→   595→          </div>
+   596→   596→
+   597→   597→          {/* Income / Expense */}
+   598→   598→          <div className="grid grid-cols-2 gap-3 mb-5">
+   599→   599→            <div className="liquid-glass-green rounded-2xl p-4">
+   600→   600→              <div className="flex items-center gap-2.5 mb-2">
+   601→   601→                <div className="w-8 h-8 rounded-xl bg-[var(--income-bg)] flex items-center justify-center"><ArrowUpRight className="w-4 h-4 text-[var(--income-color)]" /></div>
+   602→   602→                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Доходы</span>
+   603→   603→              </div>
+   604→   604→              <div className="font-semibold text-lg tabular-nums text-[var(--income-color)]">{fmtCur(totalIncome)}</div>
+   605→   605→              {totalGrossIncome !== totalIncome && <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">Гросс {fmtCur(totalGrossIncome)}{totalTax>0&&` · Налог ${fmtCur(totalTax)}`}{totalExecutorFee>0&&` · Исполнители ${fmtCur(totalExecutorFee)}`}</div>}
+   606→   606→            </div>
+   607→   607→            <div className="liquid-glass-red rounded-2xl p-4">
+   608→   608→              <div className="flex items-center gap-2.5 mb-2">
+   609→   609→                <div className="w-8 h-8 rounded-xl bg-[var(--expense-bg)] flex items-center justify-center"><ArrowDownRight className="w-4 h-4 text-[var(--expense-color)]" /></div>
+   610→   610→                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Расходы</span>
+   611→   611→              </div>
+   612→   612→              <div className="font-semibold text-lg tabular-nums text-[var(--expense-color)]">{fmtCur(totalExpense)}</div>
+   613→   613→            </div>
+   614→   614→          </div>
+   615→   615→
+   616→   616→          {/* Expense ratio */}
+   617→   617→          {totalIncome > 0 && (
+   618→   618→            <div className="space-y-1.5">
+   619→   619→              <div className="flex justify-between text-[11px] font-medium"><span className="text-muted-foreground">Расходы от доходов</span><span className="tabular-nums text-foreground/60">{expenseRatio.toFixed(0)}%</span></div>
+   620→   620→              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+   621→   621→                <div className={`h-full rounded-full transition-all duration-500 ${expenseRatio>90?'bg-[var(--expense-color)]':expenseRatio>70?'bg-orange-400':'bg-[var(--income-color)]'}`} style={{width:`${Math.min(expenseRatio,100)}%`}} />
+   622→   622→              </div>
+   623→   623→            </div>
+   624→   624→          )}
+   625→   625→        </section>
+   626→   626→
+   627→   627→        {/* Quick stats */}
+   628→   628→        {transactions.length > 0 && (
+   629→   629→          <section className="mb-8 animate-fade-in-up" style={{animationDelay:'0.1s'}}>
+   630→   630→            <div className="grid grid-cols-2 gap-3">
+   631→   631→              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Макс. доход" value={fmtCur(maxIncome)} />
+   632→   632→              <StatCard icon={<TrendingDown className="w-4 h-4" />} label="Макс. расход" value={fmtCur(maxExpense)} />
+   633→   633→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний доход" value={fmtCur(avgIncome)} />
+   634→   634→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний расход" value={fmtCur(avgExpense)} />
+   635→   635→            </div>
+   636→   636→          </section>
+   637→   637→        )}
+   638→   638→
+   639→   639→        {/* Daily chart */}
+   640→   640→        {Object.keys(dailyData).length > 1 && (
+   641→   641→          <section className="mb-8 liquid-glass rounded-3xl p-5 animate-fade-in-up" style={{animationDelay:'0.15s'}}>
+   642→   642→            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase mb-4">Активность по дням</h3>
+   643→   643→            <div className="flex items-end gap-[2px] h-24">
+   644→   644→              {chartDays.map(day => { const d = dailyData[day]; if (!d) return <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0" />; const mv = maxDaily||1; return (
+   645→   645→                <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0">
+   646→   646→                  {d.income>0 && <div className="bg-[var(--income-color)]/50 w-full rounded-t-sm" style={{height:`${(d.income/mv)*100}%`}} title={`Доход: ${fmtCur(d.income)}`} />}
+   647→   647→                  {d.expense>0 && <div className="bg-[var(--expense-color)]/50 w-full rounded-t-sm" style={{height:`${(d.expense/mv)*100}%`}} title={`Расход: ${fmtCur(d.expense)}`} />}
+   648→   648→                </div>
+   649→   649→              )})}
+   650→   650→            </div>
+   651→   651→            <div className="flex items-center gap-5 mt-3">
+   652→   652→              <div className="flex items-center gap-1.5"><div className="w-3 h-2 bg-[var(--income-color)]/50 rounded-sm" /><span className="text-[11px] text-muted-foreground">Доходы</span></div>
+   653→   653→              <div className="flex items-center gap-1.5"><div className="w-3 h-2 bg-[var(--expense-color)]/50 rounded-sm" /><span className="text-[11px] text-muted-foreground">Расходы</span></div>
+   654→   654→            </div>
+   655→   655→          </section>
+   656→   656→        )}
+   657→   657→
+   658→   658→        {/* Section divider */}
+   659→   659→        <div className="section-divider" />
+   660→   660→
+   661→   661→        {/* Transactions */}
+   662→   662→        <section className="animate-fade-in-up" style={{animationDelay:'0.25s'}}>
+   663→   663→          <div className="flex items-center justify-between mb-4">
+   664→   664→            <div className="flex items-center gap-2">
+   665→   665→              <h2 className="font-semibold text-base tracking-tight text-foreground">Транзакции</h2>
+   666→   666→              <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full">{filteredTransactions.length} {pluralize(filteredTransactions.length)}</span>
+   667→   667→            </div>
+   668→   668→          </div>
+   669→   669→          <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-4">
+   670→   670→            <TabsList className="w-full bg-secondary rounded-2xl p-1 h-10 border border-border">
+   671→   671→              <TabsTrigger value="all" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground transition-all">Все</TabsTrigger>
+   672→   672→              <TabsTrigger value="income" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground transition-all">Доходы</TabsTrigger>
+   673→   673→              <TabsTrigger value="expense" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground transition-all">Расходы</TabsTrigger>
+   674→   674→            </TabsList>
+   675→   675→          </Tabs>
+   676→   676→
+   677→   677→          {isLoading && <div className="space-y-3">{Array.from({length:5}).map((_,i)=>(<div key={i} className="flex items-center gap-3 py-3.5 px-3 animate-pulse"><div className="w-10 h-10 bg-secondary rounded-xl" /><div className="flex-1 space-y-2"><div className="h-4 bg-secondary rounded-lg w-3/4" /><div className="h-3 bg-secondary rounded-lg w-1/2" /></div><div className="h-4 bg-secondary rounded-lg w-20" /></div>))}</div>}
+   678→   678→
+   679→   679→          {!isLoading && filteredTransactions.length === 0 && (
+   680→   680→            <div className="text-center py-16 space-y-4">
+   681→   681→              <div className="w-16 h-16 mx-auto rounded-2xl bg-secondary flex items-center justify-center"><Wallet className="w-7 h-7 text-muted-foreground/50" /></div>
+   682→   682→              <p className="font-semibold text-base text-foreground/60">Нет транзакций</p>
+   683→   683→              <p className="text-sm text-muted-foreground">Добавьте первую транзакцию</p>
+   684→   684→              <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="inline-flex items-center gap-2 liquid-glass-btn px-5 py-2.5 font-semibold text-sm rounded-2xl"><Plus className="w-4 h-4" /> Добавить</button>
+   685→   685→            </div>
+   686→   686→          )}
+   687→   687→
+   688→   688→          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
+   689→   689→            <div key={dateKey}>
+   690→   690→              <div className="sticky top-[60px] z-10 py-2"><span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">{fmtFullDate(txs[0].date)}</span></div>
+   691→   691→              <div>{txs.map(t => <TransactionRow key={t.id} t={t} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}</div>
+   692→   692→            </div>
+   693→   693→          ))}
+   694→   694→        </section>
+   695→   695→      </main>
+   696→   696→
+   697→   697→      {/* FAB */}
+   698→   698→      <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="fixed bottom-6 right-6 h-14 w-14 liquid-glass-btn flex items-center justify-center shadow-lg sm:hidden z-30 rounded-2xl"><Plus className="w-6 h-6" /></button>
+   699→   699→
+   700→   700→      {/* Scroll-to-top */}
+   701→   701→      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 liquid-glass-sm rounded-2xl z-30 transition-colors hover:bg-secondary/50"><ChevronLeft className="w-4 h-4 rotate-90 text-muted-foreground" /></button>}
+   702→   702→
+   703→   703→      {/* Add Dialog */}
+   704→   704→      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+   705→   705→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   706→   706→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Новая транзакция</DialogTitle></DialogHeader>
+   707→   707→          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   708→   708→        </DialogContent>
+   709→   709→      </Dialog>
+   710→   710→
+   711→   711→      {/* Edit Dialog */}
+   712→   712→      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+   713→   713→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   714→   714→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Редактировать</DialogTitle></DialogHeader>
+   715→   715→          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   716→   716→        </DialogContent>
+   717→   717→      </Dialog>
+   718→   718→
+   719→   719→      {/* Delete Dialog */}
+   720→   720→      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+   721→   721→        <AlertDialogContent className="liquid-glass-dialog rounded-3xl">
+   722→   722→          <AlertDialogHeader>
+   723→   723→            <div className="flex items-center gap-3 mb-1">
+   724→   724→              <div className="w-10 h-10 rounded-2xl bg-[var(--expense-bg)] flex items-center justify-center"><Trash2 className="w-5 h-5 text-[var(--expense-color)]" /></div>
+   725→   725→              <AlertDialogTitle className="font-semibold tracking-tight text-foreground">Удалить?</AlertDialogTitle>
+   726→   726→            </div>
+   727→   727→            <AlertDialogDescription className="text-muted-foreground">Это действие нельзя отменить</AlertDialogDescription>
+   728→   728→          </AlertDialogHeader>
+   729→   729→          <AlertDialogFooter className="gap-2">
+   730→   730→            <AlertDialogCancel className="font-semibold rounded-2xl bg-secondary text-foreground/60 hover:bg-secondary/80 hover:text-foreground">Отмена</AlertDialogCancel>
+   731→   731→            <AlertDialogAction onClick={handleDelete} className="bg-[var(--expense-color)] text-white hover:bg-[var(--expense-color)]/80 font-semibold rounded-2xl">Удалить</AlertDialogAction>
+   732→   732→          </AlertDialogFooter>
+   733→   733→        </AlertDialogContent>
+   734→   734→      </AlertDialog>
+   735→   735→
+   736→   736→      {/* Settings Dialog */}
+   737→   737→      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+   738→   738→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   739→   739→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Настройки площадок</DialogTitle></DialogHeader>
+   740→   740→          <div className="space-y-4">
+   741→   741→            <p className="text-xs text-muted-foreground">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
+   742→   742→            <div className="space-y-2">
+   743→   743→              {platforms.map(p => (
+   744→   744→                <div key={p.name} className="flex items-center gap-2 liquid-glass rounded-2xl p-3">
+   745→   745→                  {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
+   746→   746→                  {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
+   747→   747→                  <span className="text-sm font-medium flex-1 truncate text-foreground/70">{p.name}</span>
+   748→   748→                  <div className="liquid-stepper">
+   749→   749→                    <button onClick={() => updatePlatformFee(p.name, Math.max(1, p.fee - 25))} className="liquid-stepper-btn"><MinusCircle /></button>
+   750→   750→                    <input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+   751→   751→                    <button onClick={() => updatePlatformFee(p.name, p.fee + 25)} className="liquid-stepper-btn"><PlusCircle /></button>
+   752→   752→                  </div>
+   753→   753→                  <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>
+   754→   754→                  <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>
+   755→   755→                </div>
+   756→   756→              ))}
+   757→   757→            </div>
+   758→   758→            <div className="liquid-glass rounded-2xl p-4 space-y-3">
+   759→   759→              <div className="flex items-center gap-2"><PlusCircle className="w-4 h-4 text-muted-foreground" /><span className="text-[11px] font-medium text-muted-foreground tracking-wide">Добавить площадку</span></div>
+   760→   760→              <div className="flex items-center gap-2">
+   761→   761→                <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder="Название площадки" className="h-9 text-sm rounded-xl liquid-glass-input flex-1 text-foreground placeholder:text-muted-foreground/50" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   762→   762→                <div className="liquid-stepper">
+   763→   763→                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String(Math.max(1, (parseInt(newPlatformFee)||0) - 25)))}><MinusCircle /></button>
+   764→   764→                  <input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="liquid-stepper-value text-foreground" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   765→   765→                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String((parseInt(newPlatformFee)||0) + 25))}><PlusCircle /></button>
+   766→   766→                </div>
+   767→   767→                <Button onClick={addPlatform} className="h-9 px-4 liquid-glass-btn font-semibold rounded-xl text-[12px]"><Plus className="w-3.5 h-3.5 mr-1" /> Добавить</Button>
+   768→   768→              </div>
+   769→   769→            </div>
+   770→   770→          </div>
+   771→   771→        </DialogContent>
+   772→   772→      </Dialog>
+   773→   773→
+   774→   774→      {/* History Dialog */}
+   775→   775→      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+   776→   776→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   777→   777→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">История по месяцам</DialogTitle></DialogHeader>
+   778→   778→          {monthHistory.length === 0 ? (
+   779→   779→            <div className="text-center py-12 space-y-3">
+   780→   780→              <div className="w-14 h-14 mx-auto rounded-2xl bg-secondary flex items-center justify-center"><BarChart3 className="w-6 h-6 text-muted-foreground/50" /></div>
+   781→   781→              <p className="text-sm text-muted-foreground">Пока нет данных</p>
+   782→   782→            </div>
+   783→   783→          ) : (
+   784→   784→            <div className="space-y-2">
+   785→   785→              {monthHistory.map(h => {
+   786→   786→                const net = h.income - h.expense
+   787→   787→                const isSelected = h.month === selectedMonth && h.year === selectedYear
+   788→   788→                const maxVal = Math.max(...monthHistory.map(m => Math.max(m.income, m.expense)), 1)
+   789→   789→                return (
+   790→   790→                  <button
+   791→   791→                    key={`${h.year}-${h.month}`}
+   792→   792→                    onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year); setIsHistoryOpen(false) }}
+   793→   793→                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'hover:bg-secondary/30'}`}
+   794→   794→                  >
+   795→   795→                    <div className="flex items-center justify-between mb-2">
+   796→   796→                      <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
+   797→   797→                      <div className="flex items-center gap-3">
+   798→   798→                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(h.income)}</span>
+   799→   799→                        <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
+   800→   800→                      </div>
+   801→   801→                    </div>
+   802→   802→                    <div className="flex items-center gap-1.5 h-3">
+   803→   803→                      <div className="flex-1 flex items-center h-full">
+   804→   804→                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(h.income / maxVal) * 100}%`, minWidth: h.income > 0 ? '4px' : '0'}} />
+   805→   805→                      </div>
+   806→   806→                      <div className="flex-1 flex items-center justify-end h-full">
+   807→   807→                        <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
+   808→   808→                      </div>
+   809→   809→                    </div>
+   810→   810→                    <div className="flex items-center justify-between mt-1.5">
+   811→   811→                      <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
+   812→   812→                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
+   813→   813→                    </div>
+   814→   814→                  </button>
+   815→   815→                )
+   816→   816→              })}
+   817→   817→            </div>
+   818→   818→          )}
+   819→   819→        </DialogContent>
+   820→   820→      </Dialog>
+   821→   821→    </div>
+   822→   822→  )
+   823→   823→}
+   824→   824→

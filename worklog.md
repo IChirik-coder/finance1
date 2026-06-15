@@ -33,3 +33,20 @@ Stage Summary:
 - Hydration mismatch fully resolved
 - Both theme icon and platforms now use SSR-safe defaults, then update on client mount
 - Theme flash prevention still works via the `<Script>` in layout.tsx
+
+---
+Task ID: 1
+Agent: main
+Task: Reverse transaction order (newest first) + Fix optimistic updates
+
+Work Log:
+- Changed API orderBy from `{ date: 'desc' }` to `[{ date: 'desc' }, { createdAt: 'desc' }]` so newest-added transactions appear first within same-day groups
+- Added full optimistic update for handleAddSubmit: creates temporary transaction object, prepends to transactions array, updates monthHistory, then forceRefreshes in background
+- Added full optimistic update for handleEditSubmit: creates updated transaction object, replaces in transactions array immediately (all derived values like balance, tax, expense ratio auto-recalculate), then forceRefreshes in background
+- Both add and edit now show toast BEFORE server confirms (instant feedback), with error rollback via forceRefresh
+- Delete already had optimistic updates from previous session
+
+Stage Summary:
+- Transactions now display newest-first within each day group
+- All mutations (add, edit, delete) now update UI instantly with optimistic updates
+- Server confirmation via forceRefresh() happens in background for data consistency

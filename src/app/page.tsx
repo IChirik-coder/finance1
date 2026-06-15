@@ -413,29 +413,69 @@ export default function Home() {
   async function handleAddSubmit() {
     const e = validateForm('add'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
+    // Build optimistic transaction
+    const sp = formPlatforms.filter(p => p.reviewCount>0)
+    const optTx: Transaction = {
+      id: `opt-${Date.now()}`,
+      type: formType as 'income'|'expense',
+      amount: parseFloat(formAmount),
+      description: formDescription,
+      date: formDate || format(new Date(), 'yyyy-MM-dd'),
+      taxRate: formTaxRate==='none' ? null : parseInt(formTaxRate),
+      platforms: formType==='income' && sp.length>0 ? sp : null,
+      category: formType==='expense' ? formCategory : null,
+    }
+    // Optimistic: add to UI immediately
+    setTransactions(prev => [optTx, ...prev])
+    setMonthHistory(prev => {
+      const d = new Date(optTx.date)
+      const m = d.getMonth()+1, y = d.getFullYear()
+      const existing = prev.find(h => h.month===m && h.year===y)
+      if (existing) {
+        return prev.map(h => h.month===m && h.year===y ? {
+          ...h,
+          income: optTx.type==='income' ? h.income+optTx.amount : h.income,
+          expense: optTx.type==='expense' ? h.expense+optTx.amount : h.expense,
+          count: h.count+1,
+        } : h)
+      }
+      return [...prev, { month:m, year:y, income:optTx.type==='income'?optTx.amount:0, expense:optTx.type==='expense'?optTx.amount:0, count:1 }]
+    })
     // Close dialog immediately
     setIsDialogOpen(false); resetAddForm()
     try {
-      const sp = formPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:formType, amount:parseFloat(formAmount), description:formDescription, date:formDate||new Date().toISOString(), taxRate:formTaxRate==='none'?null:parseInt(formTaxRate), platforms:formType==='income'&&sp.length>0?sp:null, category:formType==='expense'?formCategory:null }) })
       if (!r.ok) throw new Error()
       toast.success('Транзакция добавлена')
       await forceRefresh()
-    } catch { toast.error('Ошибка при добавлении') } finally { setIsSubmitting(false) }
+    } catch { toast.error('Ошибка при добавлении'); await forceRefresh() } finally { setIsSubmitting(false) }
   }
 
   async function handleEditSubmit() {
     const e = validateForm('edit'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
+    // Build optimistic updated transaction
+    const sp = editPlatforms.filter(p => p.reviewCount>0)
+    const updatedTx: Transaction = {
+      id: editId,
+      type: editType as 'income'|'expense',
+      amount: parseFloat(editAmount),
+      description: editDescription,
+      date: editDate || format(new Date(), 'yyyy-MM-dd'),
+      taxRate: editTaxRate==='none' ? null : parseInt(editTaxRate),
+      platforms: editType==='income' && sp.length>0 ? sp : null,
+      category: editType==='expense' ? editCategory : null,
+    }
+    // Optimistic: update in UI immediately
+    setTransactions(prev => prev.map(t => t.id===editId ? updatedTx : t))
     // Close dialog immediately
     setIsEditDialogOpen(false)
+    toast.success('Транзакция обновлена')
     try {
-      const sp = editPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:editId, type:editType, amount:parseFloat(editAmount), description:editDescription, date:editDate||new Date().toISOString(), taxRate:editTaxRate==='none'?null:parseInt(editTaxRate), platforms:editType==='income'&&sp.length>0?sp:null, category:editType==='expense'?editCategory:null }) })
       if (!r.ok) throw new Error()
-      toast.success('Транзакция обновлена')
       await forceRefresh()
-    } catch { toast.error('Ошибка при обновлении'); refreshData() } finally { setIsSubmitting(false) }
+    } catch { toast.error('Ошибка при обновлении'); await forceRefresh() } finally { setIsSubmitting(false) }
   }
 
   async function handleDelete() {
