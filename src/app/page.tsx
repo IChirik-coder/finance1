@@ -84,6 +84,20 @@ function groupByDate(txs: Transaction[]): Record<string, Transaction[]> { const 
 
 const cache = new Map<string, { data: Transaction[]; ts: number }>()
 async function fetchCached(m: number, y: number): Promise<Transaction[]> { const k=`${y}-${m}`; const c=cache.get(k); if (c&&Date.now()-c.ts<30000) return c.data; const r=await fetch(`/api/transactions?month=${m}&year=${y}`); if (!r.ok) throw new Error(); const d=await r.json(); cache.set(k,{data:d,ts:Date.now()}); return d }
+
+// ─── Month history ───
+
+interface MonthHistoryEntry { month: number; year: number; income: number; expense: number; count: number }
+let historyCache: { data: MonthHistoryEntry[]; ts: number } | null = null
+async function fetchMonthHistory(): Promise<MonthHistoryEntry[]> {
+  if (historyCache && Date.now() - historyCache.ts < 30000) return historyCache.data
+  const r = await fetch('/api/transactions/history')
+  if (!r.ok) throw new Error()
+  const d = await r.json()
+  historyCache = { data: d, ts: Date.now() }
+  return d
+}
+function invalidateHistoryCache() { historyCache = null }
 function invalidateCache() { cache.clear() }
 
 // ─── Sub-components ───
@@ -314,6 +328,7 @@ export default function Home() {
   }
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [monthHistory, setMonthHistory] = useState<MonthHistoryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth()+1)
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
@@ -352,12 +367,14 @@ export default function Home() {
 
   async function refreshData() {
     invalidateCache()
+    invalidateHistoryCache()
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setIsLoading(true)
     try {
-      const d = await fetchCached(selectedMonth, selectedYear)
+      const [d, h] = await Promise.all([fetchCached(selectedMonth, selectedYear), fetchMonthHistory()])
       setTransactions(d)
+      setMonthHistory(h)
     } catch {
       toast.error('Ошибка загрузки')
     } finally {
@@ -581,6 +598,48 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        {/* Month history */}
+        {monthHistory.length > 0 && (
+          <section className="mb-8 animate-fade-in-up" style={{animationDelay:'0.05s'}}>
+            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase mb-3">История по месяцам</h3>
+            <div className="space-y-2">
+              {monthHistory.map(h => {
+                const net = h.income - h.expense
+                const isSelected = h.month === selectedMonth && h.year === selectedYear
+                const maxVal = Math.max(...monthHistory.map(m => Math.max(m.income, m.expense)), 1)
+                return (
+                  <button
+                    key={`${h.year}-${h.month}`}
+                    onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year) }}
+                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'hover:bg-secondary/30'}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(h.income)}</span>
+                        <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
+                      </div>
+                    </div>
+                    {/* Bar chart */}
+                    <div className="flex items-center gap-1.5 h-3">
+                      <div className="flex-1 flex items-center h-full">
+                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(h.income / maxVal) * 100}%`, minWidth: h.income > 0 ? '4px' : '0'}} />
+                      </div>
+                      <div className="flex-1 flex items-center justify-end h-full">
+                        <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
+                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Quick stats */}
         {transactions.length > 0 && (
