@@ -370,19 +370,17 @@ export default function Home() {
     }
   }
 
-  async function refreshDataSilent() {
+  // Force refresh — always runs, no loading spinner, no guard
+  async function forceRefresh() {
     invalidateCache()
     invalidateHistoryCache()
-    if (isFetchingRef.current) return
-    isFetchingRef.current = true
+    isFetchingRef.current = false
     try {
       const [d, h] = await Promise.all([fetchCached(selectedMonth, selectedYear), fetchMonthHistory()])
       setTransactions(d)
       setMonthHistory(h)
     } catch {
-      // Silent fail — optimistic update already applied
-    } finally {
-      isFetchingRef.current = false
+      // Silent — UI already updated optimistically
     }
   }
 
@@ -415,32 +413,28 @@ export default function Home() {
   async function handleAddSubmit() {
     const e = validateForm('add'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
-    // Optimistic: close dialog immediately
+    // Close dialog immediately
     setIsDialogOpen(false); resetAddForm()
     try {
       const sp = formPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:formType, amount:parseFloat(formAmount), description:formDescription, date:formDate||new Date().toISOString(), taxRate:formTaxRate==='none'?null:parseInt(formTaxRate), platforms:formType==='income'&&sp.length>0?sp:null, category:formType==='expense'?formCategory:null }) })
       if (!r.ok) throw new Error()
-      invalidateCache(); invalidateHistoryCache()
       toast.success('Транзакция добавлена')
-      // Fetch fresh data silently
-      refreshDataSilent()
+      await forceRefresh()
     } catch { toast.error('Ошибка при добавлении') } finally { setIsSubmitting(false) }
   }
 
   async function handleEditSubmit() {
     const e = validateForm('edit'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
-    // Optimistic: update the transaction in local state immediately
-    const sp = editPlatforms.filter(p => p.reviewCount>0)
-    setTransactions(prev => prev.map(t => t.id === editId ? { ...t, type: editType as 'income'|'expense', amount: parseFloat(editAmount), description: editDescription, date: editDate || t.date, taxRate: editTaxRate==='none'?null:parseInt(editTaxRate), platforms: editType==='income'&&sp.length>0?JSON.stringify(sp):null, category: editType==='expense'?editCategory:null } : t))
-    setIsEditDialogOpen(false); toast.success('Транзакция обновлена')
+    // Close dialog immediately
+    setIsEditDialogOpen(false)
     try {
+      const sp = editPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:editId, type:editType, amount:parseFloat(editAmount), description:editDescription, date:editDate||new Date().toISOString(), taxRate:editTaxRate==='none'?null:parseInt(editTaxRate), platforms:editType==='income'&&sp.length>0?sp:null, category:editType==='expense'?editCategory:null }) })
       if (!r.ok) throw new Error()
-      invalidateCache(); invalidateHistoryCache()
-      // Fetch fresh data silently to recalculate fees etc.
-      refreshDataSilent()
+      toast.success('Транзакция обновлена')
+      await forceRefresh()
     } catch { toast.error('Ошибка при обновлении'); refreshData() } finally { setIsSubmitting(false) }
   }
 
@@ -463,12 +457,10 @@ export default function Home() {
     try {
       const r = await fetch(`/api/transactions?id=${id}`, {method:'DELETE'})
       if (!r.ok) throw new Error()
-      invalidateCache()
-      invalidateHistoryCache()
       toast.success('Транзакция удалена')
+      await forceRefresh()
     } catch {
       toast.error('Ошибка при удалении')
-      // Revert on error
       refreshData()
     }
   }
