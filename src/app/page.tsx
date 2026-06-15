@@ -370,6 +370,22 @@ export default function Home() {
     }
   }
 
+  async function refreshDataSilent() {
+    invalidateCache()
+    invalidateHistoryCache()
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+    try {
+      const [d, h] = await Promise.all([fetchCached(selectedMonth, selectedYear), fetchMonthHistory()])
+      setTransactions(d)
+      setMonthHistory(h)
+    } catch {
+      // Silent fail — optimistic update already applied
+    } finally {
+      isFetchingRef.current = false
+    }
+  }
+
   useEffect(() => {
     const id = requestAnimationFrame(() => refreshData())
     return () => cancelAnimationFrame(id)
@@ -399,35 +415,62 @@ export default function Home() {
   async function handleAddSubmit() {
     const e = validateForm('add'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
+    // Optimistic: close dialog immediately
+    setIsDialogOpen(false); resetAddForm()
     try {
       const sp = formPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:formType, amount:parseFloat(formAmount), description:formDescription, date:formDate||new Date().toISOString(), taxRate:formTaxRate==='none'?null:parseInt(formTaxRate), platforms:formType==='income'&&sp.length>0?sp:null, category:formType==='expense'?formCategory:null }) })
       if (!r.ok) throw new Error()
-      setIsDialogOpen(false); resetAddForm(); toast.success('Транзакция добавлена')
-      await refreshData()
+      invalidateCache(); invalidateHistoryCache()
+      toast.success('Транзакция добавлена')
+      // Fetch fresh data silently
+      refreshDataSilent()
     } catch { toast.error('Ошибка при добавлении') } finally { setIsSubmitting(false) }
   }
 
   async function handleEditSubmit() {
     const e = validateForm('edit'); if (e) { toast.error(e); return }
     setIsSubmitting(true)
+    // Optimistic: update the transaction in local state immediately
+    const sp = editPlatforms.filter(p => p.reviewCount>0)
+    setTransactions(prev => prev.map(t => t.id === editId ? { ...t, type: editType as 'income'|'expense', amount: parseFloat(editAmount), description: editDescription, date: editDate || t.date, taxRate: editTaxRate==='none'?null:parseInt(editTaxRate), platforms: editType==='income'&&sp.length>0?JSON.stringify(sp):null, category: editType==='expense'?editCategory:null } : t))
+    setIsEditDialogOpen(false); toast.success('Транзакция обновлена')
     try {
-      const sp = editPlatforms.filter(p => p.reviewCount>0)
       const r = await fetch('/api/transactions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:editId, type:editType, amount:parseFloat(editAmount), description:editDescription, date:editDate||new Date().toISOString(), taxRate:editTaxRate==='none'?null:parseInt(editTaxRate), platforms:editType==='income'&&sp.length>0?sp:null, category:editType==='expense'?editCategory:null }) })
       if (!r.ok) throw new Error()
-      setIsEditDialogOpen(false); toast.success('Транзакция обновлена')
-      await refreshData()
-    } catch { toast.error('Ошибка при обновлении') } finally { setIsSubmitting(false) }
+      invalidateCache(); invalidateHistoryCache()
+      // Fetch fresh data silently to recalculate fees etc.
+      refreshDataSilent()
+    } catch { toast.error('Ошибка при обновлении'); refreshData() } finally { setIsSubmitting(false) }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
+    const id = deleteTarget
+    // Optimistic: remove from UI immediately
+    setDeleteTarget(null)
+    setTransactions(prev => prev.filter(t => t.id !== id))
+    setMonthHistory(prev => {
+      const tx = transactions.find(t => t.id === id)
+      if (!tx) return prev
+      return prev.map(h => {
+        if (h.month === new Date(tx.date).getMonth() + 1 && h.year === new Date(tx.date).getFullYear()) {
+          return { ...h, income: tx.type === 'income' ? h.income - tx.amount : h.income, expense: tx.type === 'expense' ? h.expense - tx.amount : h.expense, count: h.count - 1 }
+        }
+        return h
+      }).filter(h => h.count > 0)
+    })
     try {
-      const r = await fetch(`/api/transactions?id=${deleteTarget}`, {method:'DELETE'})
+      const r = await fetch(`/api/transactions?id=${id}`, {method:'DELETE'})
       if (!r.ok) throw new Error()
-      setDeleteTarget(null); toast.success('Транзакция удалена')
-      await refreshData()
-    } catch { toast.error('Ошибка при удалении') }
+      invalidateCache()
+      invalidateHistoryCache()
+      toast.success('Транзакция удалена')
+    } catch {
+      toast.error('Ошибка при удалении')
+      // Revert on error
+      refreshData()
+    }
   }
 
   function goToPrevMonth() { setSelectedMonth(prev => { if (prev===1) { setSelectedYear(y=>y-1); return 12 } return prev-1 }) }
