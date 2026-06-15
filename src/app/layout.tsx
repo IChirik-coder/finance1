@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#07070F",
+  themeColor: "#f0f2f7",
 };
 
 export default function RootLayout({
@@ -23,16 +23,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className="dark" suppressHydrationWarning>
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('finance_theme');if(t!=='light')document.documentElement.classList.add('dark')}catch(e){document.documentElement.classList.add('dark')}})()`,
+          }}
+        />
+      </head>
       <body
         className="antialiased bg-background text-foreground safe-bottom"
         style={{
           fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         }}
       >
-        <div className="space-bg" />
-        <div className="stars" />
+        <div className="bg-ambient" />
         {children}
         <Toaster
           position="top-center"
@@ -42,10 +54,10 @@ export default function RootLayout({
             style: {
               borderRadius: "16px",
               backdropFilter: "blur(24px) saturate(1.5)",
-              background: "rgba(10,10,20,0.85)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-              color: "#F0F0F5",
+              background: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(0,0,0,0.06)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+              color: "#1a1a2e",
             },
           }}
         />
