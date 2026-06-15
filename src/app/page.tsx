@@ -485,13 +485,13 @@ export default function Home() {
         {/* Hero */}
         <section className="mb-8 animate-fade-in-up">
           {/* Month nav */}
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={goToPrevMonth} className="liquid-glass-sm p-2.5 !rounded-xl hover:bg-secondary/50 transition-colors"><ChevronLeft className="w-4 h-4 text-muted-foreground" /></button>
-            <div className="flex items-center gap-3">
-              <h1 className="font-semibold text-lg tracking-tight text-foreground">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
-              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/15 transition-colors">Сегодня</button>}
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <button onClick={goToPrevMonth} className="liquid-glass-arrow shrink-0"><ChevronLeft className="w-5 h-5" /></button>
+            <div className="flex items-center gap-3 min-w-0">
+              <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
+              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/15 transition-colors shrink-0">Сегодня</button>}
             </div>
-            <button onClick={goToNextMonth} className="liquid-glass-sm p-2.5 !rounded-xl hover:bg-secondary/50 transition-colors"><ChevronRight className="w-4 h-4 text-muted-foreground" /></button>
+            <button onClick={goToNextMonth} className="liquid-glass-arrow shrink-0"><ChevronRight className="w-5 h-5" /></button>
           </div>
 
           {/* Balance card */}
