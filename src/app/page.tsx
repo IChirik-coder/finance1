@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, memo } from 'react'
+import { useState, useEffect, useRef, memo, startTransition } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
@@ -251,13 +251,14 @@ export default function Home() {
 
   const [mounted, setMounted] = useState(false)
   const [isDark, setIsDark] = useState(true) // SSR default
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
 
   useEffect(() => {
     // Read real theme and platforms from localStorage after mount
     try {
       const saved = localStorage.getItem('finance_theme')
       const dark = saved !== 'light'
-      setIsDark(dark)
+      startTransition(() => { setIsDark(dark) })
       if (dark) document.documentElement.classList.add('dark')
       else document.documentElement.classList.remove('dark')
     } catch {
@@ -268,10 +269,10 @@ export default function Home() {
       const s = localStorage.getItem('finance_platforms')
       if (s) {
         const p = JSON.parse(s)
-        if (Array.isArray(p) && p.length > 0) setPlatforms(p)
+        if (Array.isArray(p) && p.length > 0) startTransition(() => { setPlatforms(p) })
       }
     } catch {}
-    setMounted(true)
+    startTransition(() => { setMounted(true) })
   }, [])
 
   useEffect(() => {
@@ -284,7 +285,6 @@ export default function Home() {
     try { localStorage.setItem('finance_theme', isDark ? 'dark' : 'light') } catch {}
   }, [isDark, mounted])
 
-  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [newPlatformName, setNewPlatformName] = useState('')
   const [newPlatformFee, setNewPlatformFee] = useState('25')
