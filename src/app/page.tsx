@@ -249,21 +249,42 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
 export default function Home() {
   const now = new Date()
 
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
-    try { const saved = localStorage.getItem('finance_theme'); return saved !== 'light' } catch { return true }
-  })
+  const [mounted, setMounted] = useState(false)
+  const [isDark, setIsDark] = useState(true) // SSR default
 
   useEffect(() => {
+    // Read real theme and platforms from localStorage after mount
+    try {
+      const saved = localStorage.getItem('finance_theme')
+      const dark = saved !== 'light'
+      setIsDark(dark)
+      if (dark) document.documentElement.classList.add('dark')
+      else document.documentElement.classList.remove('dark')
+    } catch {
+      document.documentElement.classList.add('dark')
+    }
+    // Load custom platforms from localStorage
+    try {
+      const s = localStorage.getItem('finance_platforms')
+      if (s) {
+        const p = JSON.parse(s)
+        if (Array.isArray(p) && p.length > 0) setPlatforms(p)
+      }
+    } catch {}
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
     if (isDark) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
     try { localStorage.setItem('finance_theme', isDark ? 'dark' : 'light') } catch {}
-  }, [isDark])
+  }, [isDark, mounted])
 
-  const [platforms, setPlatforms] = useState<PlatformConfig[]>(() => loadPlatforms())
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [newPlatformName, setNewPlatformName] = useState('')
   const [newPlatformFee, setNewPlatformFee] = useState('25')
@@ -446,8 +467,8 @@ export default function Home() {
             <span className="font-semibold text-sm tracking-tight text-foreground">Финансы</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Тема">
-              {isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
+            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Тема" suppressHydrationWarning>
+              {!mounted ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
             </button>
             <button onClick={() => setIsSettingsOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Настройки">
               <Settings className="w-[18px] h-[18px] text-muted-foreground" />
