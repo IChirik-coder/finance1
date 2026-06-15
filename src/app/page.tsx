@@ -120,7 +120,7 @@ const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMa
         {isIncome ? <ArrowUpRight className="w-4.5 h-4.5" /> : <ArrowDownRight className="w-4.5 h-4.5" />}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm text-foreground truncate">{t.description}</div>
+        <div className="font-medium text-sm text-foreground truncate">{t.description.charAt(0).toUpperCase() + t.description.slice(1)}</div>
         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
           {platforms.map((p, i) => (
             <span key={i} className="inline-flex items-center gap-1 bg-secondary text-muted-foreground text-[11px] px-2 py-0.5 rounded-full font-medium">
