@@ -250,19 +250,19 @@ export default function Home() {
   const now = new Date()
 
   const [mounted, setMounted] = useState(false)
-  const [isDark, setIsDark] = useState(true) // SSR default
+  const [isDark, setIsDark] = useState(false) // SSR default — светлая тема по умолчанию
   const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
 
   useEffect(() => {
     // Read real theme and platforms from localStorage after mount
     try {
       const saved = localStorage.getItem('finance_theme')
-      const dark = saved !== 'light'
+      const dark = saved === 'dark'
       startTransition(() => { setIsDark(dark) })
       if (dark) document.documentElement.classList.add('dark')
       else document.documentElement.classList.remove('dark')
     } catch {
-      document.documentElement.classList.add('dark')
+      // По умолчанию — светлая тема, не добавляем 'dark'
     }
     // Load custom platforms from localStorage
     try {
