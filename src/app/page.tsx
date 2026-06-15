@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Plus, X, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight,
   Pencil, Trash2, Loader2, Wallet, TrendingUp, TrendingDown, BarChart3,
-  Settings, PlusCircle, MinusCircle, Sun, Moon, History,
+  Settings, PlusCircle, MinusCircle, Sun, Moon, History, GripVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
@@ -304,6 +304,17 @@ export default function Home() {
     setPlatforms(prev => { const u = prev.map(p => p.name===name?{...p,fee}:p); savePlatforms(u); return u })
   }
   const [platformDeleteTarget, setPlatformDeleteTarget] = useState<string|null>(null)
+  const [dragIdx, setDragIdx] = useState<number|null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number|null>(null)
+
+  function reorderPlatforms(fromIdx: number, toIdx: number) {
+    setPlatforms(prev => {
+      const u = [...prev]
+      const [moved] = u.splice(fromIdx, 1)
+      u.splice(toIdx, 0, moved)
+      savePlatforms(u); return u
+    })
+  }
 
   function deactivatePlatform(name: string) {
     setPlatforms(prev => {
@@ -786,14 +797,29 @@ export default function Home() {
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
             <div className="space-y-2">
-              {platforms.map(p => {
+              {platforms.map((p, idx) => {
                 const isActive = p.active !== false
+                const isDragging = dragIdx === idx
+                const isDragOver = dragOverIdx === idx
                 return (
-                <div key={p.name} className={`flex items-center gap-2 rounded-2xl p-3 transition-all duration-200 ${isActive ? 'liquid-glass' : 'liquid-glass !opacity-50 !bg-secondary/30'}`}>
+                <div
+                  key={p.name}
+                  draggable
+                  onDragStart={() => setDragIdx(idx)}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx) }}
+                  onDragLeave={() => { if (dragOverIdx === idx) setDragOverIdx(null) }}
+                  onDrop={() => { if (dragIdx !== null && dragIdx !== idx) reorderPlatforms(dragIdx, idx); setDragIdx(null); setDragOverIdx(null) }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+                  className={`flex items-center gap-2 rounded-2xl p-3 transition-all duration-200 ${
+                    isActive ? 'liquid-glass' : 'liquid-glass !opacity-50 !bg-secondary/30'
+                  } ${isDragging ? '!opacity-40 scale-[0.98]' : ''} ${isDragOver && !isDragging ? '!ring-2 !ring-primary/40 !bg-primary/5' : ''}`}
+                  style={{ cursor: 'grab' }}
+                >
+                  <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" style={{ cursor: 'grab' }} />
                   {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
                   {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
                   <span className={`text-sm font-medium flex-1 truncate ${isActive ? 'text-foreground/70' : 'text-muted-foreground line-through'}`}>{p.name}</span>
-                  {isActive && <div className="liquid-stepper">
+                  {isActive && <div className="liquid-stepper" onClick={e => e.stopPropagation()}>
                     <button onClick={() => updatePlatformFee(p.name, Math.max(1, p.fee - 25))} className="liquid-stepper-btn"><MinusCircle /></button>
                     <input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
                     <button onClick={() => updatePlatformFee(p.name, p.fee + 25)} className="liquid-stepper-btn"><PlusCircle /></button>
