@@ -111,19 +111,17 @@ const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMa
 }) {
   const isIncome = t.type === 'income'
   const platforms = parsePlatforms(t.platforms)
-  const catObj = EXPENSE_CATEGORIES.find(c => c.value === t.category)
 
   return (
     <div className="transaction-row group">
       <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl ${
         isIncome ? 'bg-[var(--income-bg)] text-[var(--income-color)]' : 'bg-[var(--expense-bg)] text-[var(--expense-color)]'
       }`}>
-        {isIncome ? <ArrowUpRight className="w-4.5 h-4.5" /> : catObj ? <span className="text-base">{catObj.icon}</span> : <ArrowDownRight className="w-4.5 h-4.5" />}
+        {isIncome ? <ArrowUpRight className="w-4.5 h-4.5" /> : <ArrowDownRight className="w-4.5 h-4.5" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-medium text-sm text-foreground truncate">{t.description}</div>
         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-          {t.category && catObj && <span className="text-[11px] text-muted-foreground">{catObj.label}</span>}
           {platforms.map((p, i) => (
             <span key={i} className="inline-flex items-center gap-1 bg-secondary text-muted-foreground text-[11px] px-2 py-0.5 rounded-full font-medium">
               <PlatformIcon name={p.name} size={12} iconMap={iconMap} />{p.reviewCount}
@@ -180,19 +178,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
         <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl font-semibold h-16 pr-12 rounded-2xl liquid-glass-input tabular-nums text-foreground" min="0" step="any" />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">₽</span>
       </div>
-      {/* Category */}
-      {!isIncome && (
-        <div>
-          <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Категория</label>
-          <div className="grid grid-cols-4 gap-2">
-            {EXPENSE_CATEGORIES.map(c => (
-              <button key={c.value} type="button" onClick={() => setCategory(c.value)} className={`flex flex-col items-center gap-1 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${category===c.value ? 'liquid-glass-red !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
-                <span className="text-lg">{c.icon}</span><span>{c.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+
       {/* Platforms */}
       {isIncome && (
         <div>
@@ -631,19 +617,6 @@ export default function Home() {
               <div className="flex items-center gap-1.5"><div className="w-3 h-2 bg-[var(--income-color)]/50 rounded-sm" /><span className="text-[11px] text-muted-foreground">Доходы</span></div>
               <div className="flex items-center gap-1.5"><div className="w-3 h-2 bg-[var(--expense-color)]/50 rounded-sm" /><span className="text-[11px] text-muted-foreground">Расходы</span></div>
             </div>
-          </section>
-        )}
-
-        {/* Categories */}
-        {totalExpense > 0 && Object.keys(categoryBreakdown).length > 0 && (
-          <section className="mb-8 liquid-glass rounded-3xl p-5 space-y-4 animate-fade-in-up" style={{animationDelay:'0.2s'}}>
-            <h3 className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Категории расходов</h3>
-            {Object.entries(categoryBreakdown).sort(([,a],[,b])=>b-a).map(([cat,amount]) => { const co = EXPENSE_CATEGORIES.find(c=>c.value===cat); const pct = totalExpense>0?(amount/totalExpense)*100:0; return (
-              <div key={cat} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><span>{co?.icon}</span><span className="font-medium text-foreground/70">{co?.label||cat}</span></span><span className="font-semibold tabular-nums text-foreground">{fmtCur(amount)}</span></div>
-                <div className="h-1.5 bg-secondary rounded-full overflow-hidden"><div className="h-full bg-[var(--expense-color)]/50 rounded-full transition-all duration-500" style={{width:`${pct}%`}} /></div>
-              </div>
-            )})}
           </section>
         )}
 
