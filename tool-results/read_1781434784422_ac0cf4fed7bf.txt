@@ -1,0 +1,639 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+     4→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+     5→import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     9→import {
+    10→  Plus, Search, X, ArrowUpRight, ArrowDownRight, Eye, EyeOff,
+    11→  ChevronLeft, ChevronRight, Pencil, Trash2, Loader2, Wallet,
+    12→  TrendingUp, TrendingDown, BarChart3, Settings, PlusCircle, MinusCircle,
+    13→} from 'lucide-react'
+    14→import { toast } from 'sonner'
+    15→import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
+    16→
+    17→// ─── Types ───
+    18→
+    19→interface PlatformEntry { name: string; reviewCount: number }
+    20→interface PlatformConfig { name: string; fee: number; icon: string }
+    21→interface Transaction {
+    22→  id: string; type: 'income' | 'expense'; amount: number; description: string; date: string
+    23→  taxRate?: number | null; platforms?: PlatformEntry[] | null; category?: string | null
+    24→}
+    25→
+    26→// ─── Constants ───
+    27→
+    28→const DEFAULT_PLATFORMS: PlatformConfig[] = [
+    29→  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
+    30→  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
+    31→  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
+    32→  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
+    33→  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
+    34→  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
+    35→  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
+    36→  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
+    37→  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
+    38→  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
+    39→  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
+    40→  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
+    41→  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
+    42→]
+    43→
+    44→function loadPlatforms(): PlatformConfig[] {
+    45→  if (typeof window === 'undefined') return DEFAULT_PLATFORMS
+    46→  try { const s = localStorage.getItem('finance_platforms'); if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length > 0) return p } } catch {}
+    47→  return DEFAULT_PLATFORMS
+    48→}
+    49→function savePlatforms(p: PlatformConfig[]) { try { localStorage.setItem('finance_platforms', JSON.stringify(p)) } catch {} }
+    50→function buildFeeMap(p: PlatformConfig[]): Record<string, number> { const m: Record<string, number> = {}; for (const x of p) m[x.name] = x.fee; return m }
+    51→function buildIconMap(p: PlatformConfig[]): Record<string, string> { const m: Record<string, string> = {}; for (const x of p) m[x.name] = x.icon; return m }
+    52→
+    53→const EXPENSE_CATEGORIES = [
+    54→  { value: 'subscriptions', label: 'Подписки', icon: '📺' },
+    55→  { value: 'transport', label: 'Транспорт', icon: '🚗' },
+    56→  { value: 'food', label: 'Еда', icon: '🍕' },
+    57→  { value: 'office', label: 'Офис', icon: '💻' },
+    58→  { value: 'marketing', label: 'Маркетинг', icon: '📢' },
+    59→  { value: 'taxes', label: 'Налоги', icon: '📋' },
+    60→  { value: 'education', label: 'Обучение', icon: '📚' },
+    61→  { value: 'other', label: 'Другое', icon: '📦' },
+    62→] as const
+    63→
+    64→const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    65→const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+    66→const _cf = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 })
+    67→
+    68→// ─── Helpers ───
+    69→
+    70→function fmtCur(n: number): string {
+    71→  const a = Math.abs(n); if (a >= 1_000_000) return `${(n/1_000_000).toFixed(1).replace(/\.0$/,'')} млн ₽`; if (a >= 100_000) return `${(n/1_000).toFixed(0)} тыс ₽`; return _cf.format(n)
+    72→}
+    73→function fmtFull(n: number) { return _cf.format(n) }
+    74→function fmtDate(d: string) { const dt = new Date(d); return `${dt.getDate()} ${MONTHS_GEN[dt.getMonth()]}` }
+    75→function fmtFullDate(d: string) { const dt = new Date(d); if (isToday(dt)) return 'Сегодня'; if (isYesterday(dt)) return 'Вчера'; return fmtDate(d) }
+    76→function parsePlatforms(p: string | PlatformEntry[] | null | undefined): PlatformEntry[] { if (!p) return []; if (Array.isArray(p)) return p; try { return JSON.parse(p) } catch { return [] } }
+    77→function getNet(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return t.amount; let n = t.amount; if (t.taxRate) n -= (t.taxRate/100)*t.amount; for (const p of parsePlatforms(t.platforms)) n -= (fm[p.name]||0)*p.reviewCount; return n }
+    78→function getFee(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return 0; let f = 0; for (const p of parsePlatforms(t.platforms)) f += (fm[p.name]||0)*p.reviewCount; return f }
+    79→function getTax(t: Transaction): number { if (t.type === 'expense' || !t.taxRate) return 0; return (t.taxRate/100)*t.amount }
+    80→function pluralize(n: number): string { const a = Math.abs(n)%100, a1=a%10; if (a>10&&a<20) return 'записей'; if (a1>1&&a1<5) return 'записи'; if (a1===1) return 'запись'; return 'записей' }
+    81→function groupByDate(txs: Transaction[]): Record<string, Transaction[]> { const g: Record<string, Transaction[]> = {}; for (const t of txs) { const k = format(new Date(t.date),'yyyy-MM-dd'); if (!g[k]) g[k]=[]; g[k].push(t) } return Object.fromEntries(Object.entries(g).sort(([a],[b])=>b.localeCompare(a))) }
+    82→
+    83→// ─── Data fetching (no cache — always fresh) ───
+    84→
+    85→async function fetchTransactions(m: number, y: number): Promise<Transaction[]> {
+    86→  const r = await fetch(`/api/transactions?month=${m}&year=${y}`, {
+    87→    cache: 'no-store',
+    88→    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+    89→  })
+    90→  if (!r.ok) throw new Error()
+    91→  return r.json()
+    92→}
+    93→
+    94→// ─── Sub-components ───
+    95→
+    96→const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12|16|20|24; iconMap: Record<string,string> }) {
+    97→  const icon = iconMap[name]; if (!icon) return null; return <img src={icon} alt={name} width={size} height={size} className="inline-block rounded-sm opacity-80" />
+    98→})
+    99→
+   100→const TransactionRow = memo(function TransactionRow({ t, isBalanceHidden, onEdit, onDelete, feeMap, iconMap }: {
+   101→  t: Transaction; isBalanceHidden: boolean; onEdit: (t: Transaction) => void; onDelete: (id: string) => void; feeMap: Record<string,number>; iconMap: Record<string,string>
+   102→}) {
+   103→  const isIncome = t.type === 'income'
+   104→  const platforms = parsePlatforms(t.platforms)
+   105→  const catObj = EXPENSE_CATEGORIES.find(c => c.value === t.category)
+   106→
+   107→  return (
+   108→    <div className="group flex items-center gap-4 py-4 px-1 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors duration-200">
+   109→      <div className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg ${
+   110→        isIncome ? 'bg-[var(--income-bg)] text-[var(--income-color)]' : 'bg-[var(--expense-bg)] text-[var(--expense-color)]'
+   111→      }`}>
+   112→        {isIncome ? <ArrowUpRight className="w-4 h-4" /> : catObj ? <span className="text-sm">{catObj.icon}</span> : <ArrowDownRight className="w-4 h-4" />}
+   113→      </div>
+   114→      <div className="flex-1 min-w-0">
+   115→        <div className="font-medium text-[13px] text-white/80 truncate tracking-[0.01em]">{t.description}</div>
+   116→        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+   117→          {t.category && catObj && <span className="text-[10px] text-white/30 tracking-[0.04em] uppercase">{catObj.label}</span>}
+   118→          {platforms.map((p, i) => (
+   119→            <span key={i} className="inline-flex items-center gap-1 text-white/35 text-[10px] tracking-[0.02em]">
+   120→              <PlatformIcon name={p.name} size={11} iconMap={iconMap} />{p.reviewCount}
+   121→            </span>
+   122→          ))}
+   123→          {isIncome && t.taxRate && <span className="text-[10px] text-[var(--brand)]/60 tracking-[0.04em]">-{t.taxRate}%</span>}
+   124→          <span className="text-[10px] text-white/20 tracking-[0.02em]">{fmtDate(t.date)}</span>
+   125→          {isIncome && platforms.length > 0 && <span className="text-[10px] text-white/20 tracking-[0.02em]">комиссии: {fmtCur(getFee(t, feeMap))}</span>}
+   126→        </div>
+   127→      </div>
+   128→      <div className="flex-shrink-0 flex items-center gap-3">
+   129→        <span className={`font-medium text-[13px] tabular-nums tracking-[0.01em] ${isIncome ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>
+   130→          {isBalanceHidden ? '•••' : `${isIncome ? '+' : '−'}${fmtCur(t.amount)}`}
+   131→        </span>
+   132→        <div className="flex gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+   133→          <button onClick={() => onEdit(t)} className="p-1.5 rounded-md hover:bg-white/5 transition-colors"><Pencil className="w-3 h-3 text-white/30" /></button>
+   134→          <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-md hover:bg-white/5 transition-colors"><Trash2 className="w-3 h-3 text-white/30" /></button>
+   135→        </div>
+   136→      </div>
+   137→    </div>
+   138→  )
+   139→})
+   140→
+   141→const StatCard = memo(function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+   142→  return (
+   143→    <div className="card-surface p-4 card-hover">
+   144→      <div className="flex items-center gap-2 mb-2"><span className="text-[var(--brand)] opacity-70">{icon}</span><span className="text-[10px] font-medium text-white/30 tracking-[0.08em] uppercase">{label}</span></div>
+   145→      <div className="font-medium text-base tabular-nums text-white/80 tracking-[0.01em]">{value}</div>
+   146→    </div>
+   147→  )
+   148→})
+   149→
+   150→// ─── Transaction Form ───
+   151→
+   152→function TransactionForm({ type, setType, amount, setAmount, description, setDescription, date, setDate, taxRate, setTaxRate, platforms, togglePlatform, setPlatformReviewCount, category, setCategory, isSubmitting, onSubmit, submitLabel, platformsList, feeMap, iconMap }: {
+   153→  type: string; setType: (v: string) => void; amount: string; setAmount: (v: string) => void; description: string; setDescription: (v: string) => void; date: string; setDate: (v: string) => void; taxRate: string; setTaxRate: (v: string) => void; platforms: PlatformEntry[]; togglePlatform: (name: string) => void; setPlatformReviewCount: (name: string, count: number) => void; category: string; setCategory: (v: string) => void; isSubmitting: boolean; onSubmit: () => void; submitLabel: string; platformsList: PlatformConfig[]; feeMap: Record<string,number>; iconMap: Record<string,string>
+   154→}) {
+   155→  const isIncome = type === 'income'
+   156→  const selectedPlatforms = platforms.filter(p => p.reviewCount > 0)
+   157→  const numAmount = parseFloat(amount) || 0
+   158→  const totalExecutorFee = selectedPlatforms.reduce((s, p) => s + (feeMap[p.name]||0)*p.reviewCount, 0)
+   159→  const totalTax = (taxRate==='4'||taxRate==='6') ? (parseInt(taxRate)/100)*numAmount : 0
+   160→  const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
+   161→
+   162→  return (
+   163→    <div className="space-y-5">
+   164→      {/* Type toggle */}
+   165→      <div className="flex bg-[#111] rounded-lg p-0.5 gap-0.5">
+   166→        <button type="button" onClick={() => setType('income')} className={`flex-1 h-10 text-[11px] font-medium tracking-[0.06em] uppercase rounded-md transition-all duration-200 ${isIncome ? 'bg-[var(--income-bg)] text-[var(--income-color)] border border-[var(--income-color)]/20' : 'text-white/30 hover:text-white/50'}`}>Доход</button>
+   167→        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} className={`flex-1 h-10 text-[11px] font-medium tracking-[0.06em] uppercase rounded-md transition-all duration-200 ${!isIncome ? 'bg-[var(--expense-bg)] text-[var(--expense-color)] border border-[var(--expense-color)]/20' : 'text-white/30 hover:text-white/50'}`}>Расход</button>
+   168→      </div>
+   169→      {/* Amount */}
+   170→      <div className="relative">
+   171→        <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="text-3xl font-light h-16 pr-12 rounded-lg bg-[#111] border-white/[0.06] tabular-nums text-white tracking-[0.02em]" min="0" step="any" />
+   172→        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-light text-white/20">₽</span>
+   173→      </div>
+   174→      {/* Category */}
+   175→      {!isIncome && (
+   176→        <div>
+   177→          <label className="text-[10px] font-medium text-white/30 mb-2 block tracking-[0.08em] uppercase">Категория</label>
+   178→          <div className="grid grid-cols-4 gap-1.5">
+   179→            {EXPENSE_CATEGORIES.map(c => (
+   180→              <button key={c.value} type="button" onClick={() => setCategory(c.value)} className={`flex flex-col items-center gap-1 p-2.5 text-[10px] rounded-lg transition-all duration-200 tracking-[0.02em] ${category===c.value ? 'bg-[var(--expense-bg)] text-[var(--expense-color)] font-medium border border-[var(--expense-color)]/15' : 'bg-[#111] text-white/30 hover:bg-[#1A1A1A] border border-transparent'}`}>
+   181→                <span className="text-base">{c.icon}</span><span>{c.label}</span>
+   182→              </button>
+   183→            ))}
+   184→          </div>
+   185→        </div>
+   186→      )}
+   187→      {/* Platforms */}
+   188→      {isIncome && (
+   189→        <div>
+   190→          <label className="text-[10px] font-medium text-white/30 mb-2 block tracking-[0.08em] uppercase">Площадки</label>
+   191→          <div className="grid grid-cols-3 gap-1.5">
+   192→            {platformsList.map(p => {
+   193→              const sel = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
+   194→              return (
+   195→                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} className={`flex items-center gap-1.5 p-2.5 text-[10px] rounded-lg transition-all duration-200 tracking-[0.02em] ${sel ? 'bg-[var(--income-bg)] text-[var(--income-color)] font-medium border border-[var(--income-color)]/15' : 'bg-[#111] text-white/30 hover:bg-[#1A1A1A] border border-transparent'}`}>
+   196→                  <PlatformIcon name={p.name} size={14} iconMap={iconMap} /><span className="truncate">{p.name}</span>{sel && <span className="ml-auto text-[var(--income-color)]/50">✓</span>}
+   197→                </button>
+   198→              )
+   199→            })}
+   200→          </div>
+   201→        </div>
+   202→      )}
+   203→      {/* Review counts */}
+   204→      {isIncome && selectedPlatforms.length > 0 && (
+   205→        <div className="space-y-1.5">
+   206→          <label className="text-[10px] font-medium text-white/30 tracking-[0.08em] uppercase">Количество отзывов</label>
+   207→          {selectedPlatforms.map(p => (
+   208→            <div key={p.name} className="flex items-center gap-2 bg-[#111] rounded-lg p-3 border border-white/[0.04]">
+   209→              <PlatformIcon name={p.name} size={18} iconMap={iconMap} />
+   210→              <span className="text-[11px] font-medium flex-shrink-0 text-white/50 tracking-[0.01em]">{p.name}</span>
+   211→              <Input type="number" min="1" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="h-7 w-16 text-[12px] rounded-md bg-[#1A1A1A] border-white/[0.04] tabular-nums text-white" />
+   212→              <span className="text-[10px] text-white/20 tabular-nums tracking-[0.02em]">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
+   213→              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="ml-auto p-1 rounded-md hover:bg-white/5 transition-colors"><X className="w-3 h-3 text-white/30" /></button>
+   214→            </div>
+   215→          ))}
+   216→        </div>
+   217→      )}
+   218→      {/* Tax */}
+   219→      {isIncome && (
+   220→        <div>
+   221→          <label className="text-[10px] font-medium text-white/30 mb-2 block tracking-[0.08em] uppercase">Налоговый вычет</label>
+   222→          <div className="flex bg-[#111] rounded-lg p-0.5 gap-0.5">
+   223→            {(['none','4','6'] as const).map(rate => (
+   224→              <button key={rate} type="button" onClick={() => setTaxRate(rate)} className={`flex-1 h-10 text-[11px] font-medium tracking-[0.06em] uppercase rounded-md transition-all duration-200 ${taxRate===rate ? (rate==='none' ? 'bg-[#1A1A1A] text-white/70 border border-white/[0.08]' : 'bg-[var(--brand)] text-white') : 'text-white/30 hover:text-white/50'}`}>
+   225→                {rate==='none' ? 'Без вычета' : `${rate}%`}
+   226→              </button>
+   227→            ))}
+   228→          </div>
+   229→        </div>
+   230→      )}
+   231→      {/* Description */}
+   232→      <div>
+   233→        <label className="text-[10px] font-medium text-white/30 mb-2 block tracking-[0.08em] uppercase">Описание</label>
+   234→        <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="За что?" className="h-11 rounded-lg bg-[#111] border-white/[0.06] text-white placeholder:text-white/15 tracking-[0.01em]" />
+   235→      </div>
+   236→      {/* Date */}
+   237→      <div>
+   238→        <label className="text-[10px] font-medium text-white/30 mb-2 block tracking-[0.08em] uppercase">Дата</label>
+   239→        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-11 rounded-lg bg-[#111] border-white/[0.06] text-white" />
+   240→      </div>
+   241→      {/* Net calculation */}
+   242→      {isIncome && numAmount > 0 && (totalTax > 0 || totalExecutorFee > 0) && (
+   243→        <div className="card-accent rounded-lg p-4 space-y-2">
+   244→          <div className="text-[10px] font-medium text-white/30 tracking-[0.08em] uppercase">Итого</div>
+   245→          <div className="space-y-1.5">
+   246→            <div className="flex justify-between text-[12px]"><span className="text-white/40">Сумма</span><span className="tabular-nums text-white/60">{fmtCur(numAmount)}</span></div>
+   247→            {totalTax > 0 && <div className="flex justify-between text-[12px]"><span className="text-white/40">Налог</span><span className="tabular-nums text-[var(--brand)]/60">−{fmtCur(totalTax)}</span></div>}
+   248→            {totalExecutorFee > 0 && <div className="flex justify-between text-[12px]"><span className="text-white/40">Исполнители</span><span className="tabular-nums text-[var(--brand)]/60">−{fmtCur(totalExecutorFee)}</span></div>}
+   249→            <div className="section-divider my-2" />
+   250→            <div className="flex justify-between text-[13px] font-medium"><span className="text-white/60">Чистый доход</span><span className="tabular-nums text-[var(--income-color)]">{fmtCur(netAmount)}</span></div>
+   251→          </div>
+   252→        </div>
+   253→      )}
+   254→      {/* Submit */}
+   255→      <Button onClick={onSubmit} disabled={isSubmitting || !amount || !description} className="w-full h-12 bg-[var(--brand)] hover:bg-[var(--brand)]/80 text-white font-medium rounded-lg text-[11px] tracking-[0.08em] uppercase pill-press disabled:opacity-30">
+   256→        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : submitLabel}
+   257→      </Button>
+   258→    </div>
+   259→  )
+   260→}
+   261→
+   262→// ─── Main Component ───
+   263→
+   264→export default function Home() {
+   265→  const now = new Date()
+   266→
+   267→  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
+   268→  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+   269→  const [newPlatformName, setNewPlatformName] = useState('')
+   270→  const [newPlatformFee, setNewPlatformFee] = useState('25')
+   271→
+   272→  useEffect(() => { setPlatforms(loadPlatforms()) }, [])
+   273→
+   274→  const feeMap = useMemo(() => buildFeeMap(platforms), [platforms])
+   275→  const iconMap = useMemo(() => buildIconMap(platforms), [platforms])
+   276→
+   277→  const updatePlatformFee = useCallback((name: string, fee: number) => { setPlatforms(prev => { const u = prev.map(p => p.name===name?{...p,fee}:p); savePlatforms(u); return u }) }, [])
+   278→  const removePlatform = useCallback((name: string) => { setPlatforms(prev => { const u = prev.filter(p => p.name!==name); savePlatforms(u); return u }) }, [])
+   279→  const addPlatform = useCallback(() => { const t = newPlatformName.trim(); if (!t) { toast.error('Введите название площадки'); return } if (platforms.some(p => p.name.toLowerCase()===t.toLowerCase())) { toast.error('Такая площадка уже есть'); return } const f = parseInt(newPlatformFee)||0; if (f<=0) { toast.error('Укажите цену больше 0'); return } setPlatforms(prev => { const u = [...prev, {name:t,fee:f,icon:''}]; savePlatforms(u); return u }); setNewPlatformName(''); setNewPlatformFee('25'); toast.success(`Площадка «${t}» добавлена`) }, [newPlatformName, newPlatformFee, platforms])
+   280→
+   281→  const [transactions, setTransactions] = useState<Transaction[]>([])
+   282→  const [isLoading, setIsLoading] = useState(true)
+   283→  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()+1)
+   284→  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+   285→  const [isDialogOpen, setIsDialogOpen] = useState(false)
+   286→  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+   287→  const [deleteTarget, setDeleteTarget] = useState<string|null>(null)
+   288→  const [isBalanceHidden, setIsBalanceHidden] = useState(false)
+   289→  const [showSearch, setShowSearch] = useState(false)
+   290→  const [searchQuery, setSearchQuery] = useState('')
+   291→  const [filterTab, setFilterTab] = useState<'all'|'income'|'expense'>('all')
+   292→  const [isSubmitting, setIsSubmitting] = useState(false)
+   293→  const [showScrollTop, setShowScrollTop] = useState(false)
+   294→  const searchRef = useRef<HTMLInputElement>(null)
+   295→
+   296→  // Add form
+   297→  const [formType, setFormType] = useState('income')
+   298→  const [formAmount, setFormAmount] = useState('')
+   299→  const [formDescription, setFormDescription] = useState('')
+   300→  const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
+   301→  const [formTaxRate, setFormTaxRate] = useState('none')
+   302→  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>([])
+   303→  const [formCategory, setFormCategory] = useState('')
+   304→
+   305→  // Edit form
+   306→  const [editId, setEditId] = useState('')
+   307→  const [editType, setEditType] = useState('income')
+   308→  const [editAmount, setEditAmount] = useState('')
+   309→  const [editDescription, setEditDescription] = useState('')
+   310→  const [editDate, setEditDate] = useState('')
+   311→  const [editTaxRate, setEditTaxRate] = useState('none')
+   312→  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>([])
+   313→  const [editCategory, setEditCategory] = useState('')
+   314→
+   315→  const resetAddForm = useCallback(() => { setFormType('income'); setFormAmount(''); setFormDescription(''); setFormDate(format(new Date(), 'yyyy-MM-dd')); setFormTaxRate('none'); setFormPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))); setFormCategory('') }, [platforms])
+   316→
+   317→  // Data loading
+   318→  useEffect(() => { (async () => { setIsLoading(true); try { const r = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }); if (!r.ok) throw new Error(); setTransactions(await r.json()) } catch { toast.error('Ошибка загрузки') } setIsLoading(false) })() }, [selectedMonth, selectedYear])
+   319→
+   320→  // Scroll listener
+   321→  useEffect(() => { const h = () => setShowScrollTop(window.scrollY > 400); window.addEventListener('scroll', h, {passive:true}); return () => window.removeEventListener('scroll', h) }, [])
+   322→
+   323→  // Derived stats
+   324→  const stats = useMemo(() => {
+   325→    const income = transactions.filter(t=>t.type==='income'); const expense = transactions.filter(t=>t.type==='expense')
+   326→    const totalIncome = income.reduce((s,t)=>s+getNet(t,feeMap),0); const totalGrossIncome = income.reduce((s,t)=>s+t.amount,0)
+   327→    const totalExpense = expense.reduce((s,t)=>s+t.amount,0); const totalTax = income.reduce((s,t)=>s+getTax(t),0)
+   328→    const totalExecutorFee = income.reduce((s,t)=>s+getFee(t,feeMap),0)
+   329→    const maxIncome = income.length?Math.max(...income.map(t=>t.amount)):0; const maxExpense = expense.length?Math.max(...expense.map(t=>t.amount)):0
+   330→    const avgIncome = income.length?income.reduce((s,t)=>s+t.amount,0)/income.length:0; const avgExpense = expense.length?expense.reduce((s,t)=>s+t.amount,0)/expense.length:0
+   331→    const expenseRatio = totalIncome>0?(totalExpense/totalGrossIncome)*100:0
+   332→    const categoryBreakdown: Record<string,number> = {}; for (const t of expense) { if(t.category) categoryBreakdown[t.category] = (categoryBreakdown[t.category]||0)+t.amount }
+   333→    const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth-1)); const dailyData: Record<number,{income:number;expense:number}> = {}
+   334→    for(let d=1;d<=daysInMonth;d++) dailyData[d]={income:0,expense:0}
+   335→    for(const t of transactions){const d=new Date(t.date).getDate();if(t.type==='income')dailyData[d].income+=t.amount;else dailyData[d].expense+=t.amount}
+   336→    const maxDaily = Math.max(...Object.values(dailyData).flatMap(d=>[d.income,d.expense]),1)
+   337→    return { totalIncome, totalGrossIncome, totalExpense, totalTax, totalExecutorFee, balance:totalIncome-totalExpense, maxIncome, maxExpense, avgIncome, avgExpense, expenseRatio, categoryBreakdown, dailyData, maxDaily }
+   338→  }, [transactions, feeMap])
+   339→
+   340→  const chartDays = useMemo(() => { const n = getDaysInMonth(new Date(selectedYear, selectedMonth-1)); return Array.from({length:n},(_,i)=>i+1) }, [selectedMonth, selectedYear])
+   341→
+   342→  // Filtered
+   343→  const filteredTransactions = useMemo(() => { let f = [...transactions]; if(filterTab==='income') f=f.filter(t=>t.type==='income'); if(filterTab==='expense') f=f.filter(t=>t.type==='expense'); if(searchQuery){const q=searchQuery.toLowerCase();f=f.filter(t=>t.description.toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||parsePlatforms(t.platforms).some(p=>p.name.toLowerCase().includes(q)))} return f.sort((a,b)=>{ const dd=new Date(b.date).getTime()-new Date(a.date).getTime(); if(dd!==0) return dd; return b.id>a.id?1:b.id<a.id?-1:0 }) }, [transactions, filterTab, searchQuery])
+   344→  const groupedTransactions = useMemo(() => groupByDate(filteredTransactions), [filteredTransactions])
+   345→
+   346→  // Navigation
+   347→  const goToPrevMonth = useCallback(() => { setSelectedMonth(prev => { if(prev===1){setSelectedYear(y=>y-1);return 12} return prev-1 }) }, [])
+   348→  const goToNextMonth = useCallback(() => { setSelectedMonth(prev => { if(prev===12){setSelectedYear(y=>y+1);return 1} return prev+1 }) }, [])
+   349→  const goToCurrentMonth = useCallback(() => { const n=new Date(); setSelectedMonth(n.getMonth()+1); setSelectedYear(n.getFullYear()) }, [])
+   350→  const isCurrentMonth = selectedMonth===now.getMonth()+1 && selectedYear===now.getFullYear()
+   351→
+   352→  // CRUD
+   353→  const togglePlatform = useCallback((name:string) => { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }, [])
+   354→  const setPlatformReviewCount = useCallback((name:string,count:number) => { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }, [])
+   355→  const toggleEditPlatform = useCallback((name:string) => { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }, [])
+   356→  const setEditPlatformReviewCount = useCallback((name:string,count:number) => { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }, [])
+   357→
+   358→  const refreshData = useCallback(async () => {
+   359→    try {
+   360→      const r = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&_t=${Date.now()}`, {
+   361→        cache: 'no-store',
+   362→        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+   363→      })
+   364→      if (!r.ok) throw new Error()
+   365→      const data = await r.json()
+   366→      setTransactions(data)
+   367→      return true
+   368→    } catch { return false }
+   369→  }, [selectedMonth, selectedYear])
+   370→
+   371→  const handleAddSubmit = useCallback(async () => {
+   372→    if(!formAmount||!formDescription) return; setIsSubmitting(true)
+   373→    try { const r=await fetch('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:formType,amount:parseFloat(formAmount),description:formDescription,date:formDate,taxRate:formTaxRate==='none'?null:parseInt(formTaxRate),platforms:formPlatforms.filter(p=>p.reviewCount>0),category:formType==='expense'?formCategory||null:null})}); if(!r.ok) throw new Error(); await refreshData(); setIsDialogOpen(false); resetAddForm(); toast.success('Транзакция добавлена') }
+   374→    catch{toast.error('Ошибка добавления')} finally{setIsSubmitting(false)}
+   375→  }, [formType,formAmount,formDescription,formDate,formTaxRate,formPlatforms,formCategory,resetAddForm,refreshData])
+   376→
+   377→  const openEditDialog = useCallback((t:Transaction) => { setEditId(t.id); setEditType(t.type); setEditAmount(t.amount.toString()); setEditDescription(t.description); setEditDate(t.date); setEditTaxRate(t.taxRate?t.taxRate.toString():'none'); setEditPlatforms(parsePlatforms(t.platforms).length?parsePlatforms(t.platforms):platforms.map(p=>({name:p.name,reviewCount:0}))); setEditCategory(t.category||''); setIsEditDialogOpen(true) }, [platforms])
+   378→
+   379→  const handleEditSubmit = useCallback(async () => {
+   380→    if(!editAmount||!editDescription) return; setIsSubmitting(true)
+   381→    try { const r=await fetch('/api/transactions',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,type:editType,amount:parseFloat(editAmount),description:editDescription,date:editDate,taxRate:editTaxRate==='none'?null:parseInt(editTaxRate),platforms:editPlatforms.filter(p=>p.reviewCount>0),category:editType==='expense'?editCategory||null:null})}); if(!r.ok) throw new Error(); await refreshData(); setIsEditDialogOpen(false); toast.success('Транзакция обновлена') }
+   382→    catch{toast.error('Ошибка обновления')} finally{setIsSubmitting(false)}
+   383→  }, [editId,editType,editAmount,editDescription,editDate,editTaxRate,editPlatforms,editCategory,refreshData])
+   384→
+   385→  const handleDelete = useCallback(async () => {
+   386→    if(!deleteTarget) return; setIsSubmitting(true)
+   387→    try { const r=await fetch('/api/transactions',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:deleteTarget})}); if(!r.ok) throw new Error(); await refreshData(); setDeleteTarget(null); toast.success('Удалено') }
+   388→    catch{toast.error('Ошибка удаления')} finally{setIsSubmitting(false)}
+   389→  }, [deleteTarget,refreshData])
+   390→
+   391→  return (
+   392→    <div className="min-h-screen bg-black text-white">
+   393→      {/* ── Navigation ── */}
+   394→      <nav className="fixed top-0 left-0 right-0 z-50 nav-bar">
+   395→        <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
+   396→          <div className="flex items-center gap-3">
+   397→            <div className="w-6 h-6 rounded-md bg-[var(--brand)] flex items-center justify-center">
+   398→              <span className="text-white text-[9px] font-bold">₽</span>
+   399→            </div>
+   400→            <span className="text-[12px] font-medium tracking-[0.08em] uppercase text-white/60">Финансы</span>
+   401→          </div>
+   402→          <div className="flex items-center gap-1">
+   403→            <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 rounded-md hover:bg-white/5 transition-colors" title="Настройки"><Settings className="w-4 h-4 text-white/30" /></button>
+   404→            <button onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchRef.current?.focus(), 100) }} className="p-2.5 rounded-md hover:bg-white/5 transition-colors">
+   405→              {showSearch ? <X className="w-4 h-4 text-white/30" /> : <Search className="w-4 h-4 text-white/30" />}
+   406→            </button>
+   407→            <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="p-2.5 rounded-md bg-[var(--brand)] text-white hover:bg-[var(--brand)]/80 transition-colors ml-1">
+   408→              <Plus className="w-4 h-4" />
+   409→            </button>
+   410→          </div>
+   411→        </div>
+   412→      </nav>
+   413→
+   414→      {/* Search */}
+   415→      {showSearch && (
+   416→        <div className="fixed top-14 left-0 right-0 z-40 animate-fade-in" style={{animationDuration:'0.2s'}}>
+   417→          <div className="max-w-2xl mx-auto px-6 py-3 bg-black/90 backdrop-blur-xl border-b border-white/[0.04]">
+   418→            <div className="flex items-center gap-3">
+   419→              <Search className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+   420→              <input ref={searchRef} type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск транзакций..." className="flex-1 bg-transparent outline-none text-[13px] font-light text-white/80 placeholder:text-white/15 tracking-[0.01em]" />
+   421→              {searchQuery && <button onClick={() => setSearchQuery('')} className="p-1 rounded-md hover:bg-white/5 transition-colors"><X className="w-3.5 h-3.5 text-white/25" /></button>}
+   422→            </div>
+   423→          </div>
+   424→        </div>
+   425→      )}
+   426→
+   427→      {/* ── Main Content ── */}
+   428→      <main className="max-w-2xl mx-auto px-6 pt-24 pb-28">
+   429→        {/* Hero Section */}
+   430→        <section className="mb-12 animate-fade-in-up">
+   431→          {/* Month navigation */}
+   432→          <div className="flex items-center justify-between mb-10">
+   433→            <button onClick={goToPrevMonth} className="p-2 rounded-md hover:bg-white/5 transition-colors pill-press"><ChevronLeft className="w-4 h-4 text-white/30" /></button>
+   434→            <div className="flex items-center gap-3">
+   435→              <h1 className="text-[28px] font-light tracking-[0.04em] text-white/90">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
+   436→              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[10px] font-medium text-[var(--brand)] bg-[var(--brand)]/8 px-3 py-1.5 rounded-full hover:bg-[var(--brand)]/15 transition-colors tracking-[0.06em] uppercase pill-press">Сегодня</button>}
+   437→            </div>
+   438→            <button onClick={goToNextMonth} className="p-2 rounded-md hover:bg-white/5 transition-colors pill-press"><ChevronRight className="w-4 h-4 text-white/30" /></button>
+   439→          </div>
+   440→
+   441→          {/* Balance */}
+   442→          <div className="mb-10">
+   443→            <div className="flex items-center justify-between mb-3">
+   444→              <span className="text-[10px] font-medium text-white/30 tracking-[0.1em] uppercase">Баланс</span>
+   445→              <button onClick={() => setIsBalanceHidden(!isBalanceHidden)} className="p-1 rounded-md hover:bg-white/5 transition-colors">{isBalanceHidden ? <EyeOff className="w-3.5 h-3.5 text-white/20" /> : <Eye className="w-3.5 h-3.5 text-white/20" />}</button>
+   446→            </div>
+   447→            <div className="font-light text-6xl sm:text-7xl tracking-[-0.02em] tabular-nums text-gradient leading-tight">
+   448→              {isBalanceHidden ? '•••' : fmtCur(stats.balance)}
+   449→            </div>
+   450→          </div>
+   451→
+   452→          {/* Income / Expense row */}
+   453→          <div className="grid grid-cols-2 gap-3">
+   454→            <div className="card-surface p-5 card-hover">
+   455→              <div className="flex items-center gap-2 mb-3">
+   456→                <div className="w-7 h-7 rounded-md bg-[var(--income-bg)] flex items-center justify-center"><ArrowUpRight className="w-3.5 h-3.5 text-[var(--income-color)]" /></div>
+   457→                <span className="text-[10px] font-medium text-white/30 tracking-[0.08em] uppercase">Доходы</span>
+   458→              </div>
+   459→              <div className="font-medium text-xl tabular-nums text-[var(--income-color)] tracking-[0.01em]">{isBalanceHidden ? '•••' : fmtCur(stats.totalIncome)}</div>
+   460→              {!isBalanceHidden && stats.totalGrossIncome !== stats.totalIncome && <div className="text-[10px] text-white/20 mt-1 tabular-nums tracking-[0.02em]">Гросс {fmtCur(stats.totalGrossIncome)}{stats.totalTax>0&&` · Налог ${fmtCur(stats.totalTax)}`}{stats.totalExecutorFee>0&&` · Исполнители ${fmtCur(stats.totalExecutorFee)}`}</div>}
+   461→            </div>
+   462→            <div className="card-surface p-5 card-hover">
+   463→              <div className="flex items-center gap-2 mb-3">
+   464→                <div className="w-7 h-7 rounded-md bg-[var(--expense-bg)] flex items-center justify-center"><ArrowDownRight className="w-3.5 h-3.5 text-[var(--expense-color)]" /></div>
+   465→                <span className="text-[10px] font-medium text-white/30 tracking-[0.08em] uppercase">Расходы</span>
+   466→              </div>
+   467→              <div className={`font-medium text-xl tabular-nums tracking-[0.01em] ${isBalanceHidden ? 'text-white/50' : 'text-[var(--expense-color)]'}`}>{isBalanceHidden ? '•••' : fmtCur(stats.totalExpense)}</div>
+   468→            </div>
+   469→          </div>
+   470→
+   471→          {/* Expense ratio bar */}
+   472→          {stats.totalIncome > 0 && !isBalanceHidden && (
+   473→            <div className="mt-5 space-y-2">
+   474→              <div className="flex justify-between text-[10px] font-medium tracking-[0.04em] uppercase"><span className="text-white/25">Расходы от доходов</span><span className="tabular-nums text-white/40">{stats.expenseRatio.toFixed(0)}%</span></div>
+   475→              <div className="h-[3px] bg-white/[0.04] rounded-full overflow-hidden">
+   476→                <div className={`h-full rounded-full transition-all duration-700 ${stats.expenseRatio>90?'bg-[var(--expense-color)]':stats.expenseRatio>70?'bg-orange-400/70':'bg-[var(--income-color)]/70'}`} style={{width:`${Math.min(stats.expenseRatio,100)}%`}} />
+   477→              </div>
+   478→            </div>
+   479→          )}
+   480→        </section>
+   481→
+   482→        {/* Divider */}
+   483→        <div className="section-divider mb-10" />
+   484→
+   485→        {/* Quick stats */}
+   486→        {transactions.length > 0 && (
+   487→          <section className="mb-10 animate-fade-in-up" style={{animationDelay:'100ms'}}>
+   488→            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+   489→              <StatCard icon={<TrendingUp className="w-3.5 h-3.5" />} label="Макс. доход" value={isBalanceHidden ? '•••' : fmtCur(stats.maxIncome)} />
+   490→              <StatCard icon={<TrendingDown className="w-3.5 h-3.5" />} label="Макс. расход" value={isBalanceHidden ? '•••' : fmtCur(stats.maxExpense)} />
+   491→              <StatCard icon={<BarChart3 className="w-3.5 h-3.5" />} label="Средний доход" value={isBalanceHidden ? '•••' : fmtCur(stats.avgIncome)} />
+   492→              <StatCard icon={<BarChart3 className="w-3.5 h-3.5" />} label="Средний расход" value={isBalanceHidden ? '•••' : fmtCur(stats.avgExpense)} />
+   493→            </div>
+   494→          </section>
+   495→        )}
+   496→
+   497→        {/* Daily chart */}
+   498→        {Object.keys(stats.dailyData).length > 1 && (
+   499→          <section className="mb-10 card-surface p-6 animate-fade-in-up" style={{animationDelay:'150ms'}}>
+   500→            <h3 className="text-[10px] font-medium text-white/30 tracking-[0.1em] uppercase mb-5">Активность по дням</h3>
+   501→            <div className="flex items-end gap-[1px] h-20">
+   502→              {chartDays.map(day => { const d = stats.dailyData[day]; if (!d) return <div key={day} className="flex-1 min-w-0" />; const mv = stats.maxDaily||1; return (
+   503→                <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0">
+   504→                  {d.income>0 && <div className="bg-[var(--income-color)]/40 w-full rounded-t-sm" style={{height:`${(d.income/mv)*100}%`}} title={`Доход: ${fmtCur(d.income)}`} />}
+   505→                  {d.expense>0 && <div className="bg-[var(--expense-color)]/40 w-full rounded-t-sm" style={{height:`${(d.expense/mv)*100}%`}} title={`Расход: ${fmtCur(d.expense)}`} />}
+   506→                </div>
+   507→              )})}
+   508→            </div>
+   509→            <div className="flex items-center gap-6 mt-4">
+   510→              <div className="flex items-center gap-2"><div className="w-3 h-1 bg-[var(--income-color)]/40 rounded-sm" /><span className="text-[10px] text-white/20 tracking-[0.04em] uppercase">Доходы</span></div>
+   511→              <div className="flex items-center gap-2"><div className="w-3 h-1 bg-[var(--expense-color)]/40 rounded-sm" /><span className="text-[10px] text-white/20 tracking-[0.04em] uppercase">Расходы</span></div>
+   512→            </div>
+   513→          </section>
+   514→        )}
+   515→
+   516→        {/* Categories */}
+   517→        {stats.totalExpense > 0 && !isBalanceHidden && Object.keys(stats.categoryBreakdown).length > 0 && (
+   518→          <section className="mb-10 card-surface p-6 space-y-5 animate-fade-in-up" style={{animationDelay:'200ms'}}>
+   519→            <h3 className="text-[10px] font-medium text-white/30 tracking-[0.1em] uppercase">Категории расходов</h3>
+   520→            {Object.entries(stats.categoryBreakdown).sort(([,a],[,b])=>b-a).map(([cat,amount]) => { const co = EXPENSE_CATEGORIES.find(c=>c.value===cat); const pct = stats.totalExpense>0?(amount/stats.totalExpense)*100:0; return (
+   521→              <div key={cat} className="space-y-2">
+   522→                <div className="flex items-center justify-between text-[13px]"><span className="flex items-center gap-2.5"><span className="text-sm">{co?.icon}</span><span className="font-medium text-white/60 tracking-[0.01em]">{co?.label||cat}</span></span><span className="font-medium tabular-nums text-white/80 tracking-[0.01em]">{fmtCur(amount)}</span></div>
+   523→                <div className="h-[2px] bg-white/[0.04] rounded-full overflow-hidden"><div className="h-full bg-[var(--expense-color)]/40 rounded-full transition-all duration-700" style={{width:`${pct}%`}} /></div>
+   524→              </div>
+   525→            )})}
+   526→          </section>
+   527→        )}
+   528→
+   529→        {/* Divider */}
+   530→        <div className="section-divider mb-8" />
+   531→
+   532→        {/* Transactions */}
+   533→        <section className="animate-fade-in-up" style={{animationDelay:'250ms'}}>
+   534→          <div className="flex items-center justify-between mb-5">
+   535→            <div className="flex items-center gap-3">
+   536→              <h2 className="text-[10px] font-medium text-white/30 tracking-[0.1em] uppercase">Транзакции</h2>
+   537→              <span className="text-[10px] font-medium text-white/15 tracking-[0.04em]">{filteredTransactions.length} {pluralize(filteredTransactions.length)}</span>
+   538→            </div>
+   539→          </div>
+   540→          <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-5">
+   541→            <TabsList className="w-full bg-[#111] rounded-lg p-0.5 h-9 border border-white/[0.04]">
+   542→              <TabsTrigger value="all" className="flex-1 text-[10px] font-medium tracking-[0.06em] uppercase rounded-md data-[state=active]:bg-[#1A1A1A] data-[state=active]:text-white/70 data-[state=active]:border data-[state=active]:border-white/[0.06] text-white/25 transition-all">Все</TabsTrigger>
+   543→              <TabsTrigger value="income" className="flex-1 text-[10px] font-medium tracking-[0.06em] uppercase rounded-md data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] text-white/25 transition-all">Доходы</TabsTrigger>
+   544→              <TabsTrigger value="expense" className="flex-1 text-[10px] font-medium tracking-[0.06em] uppercase rounded-md data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] text-white/25 transition-all">Расходы</TabsTrigger>
+   545→            </TabsList>
+   546→          </Tabs>
+   547→
+   548→          {isLoading && <div className="space-y-3">{Array.from({length:5}).map((_,i)=>(<div key={i} className="flex items-center gap-4 py-4 px-1 animate-pulse"><div className="w-9 h-9 bg-[#111] rounded-lg" /><div className="flex-1 space-y-2"><div className="h-3 bg-[#111] rounded-md w-3/4" /><div className="h-2 bg-[#111] rounded-md w-1/2" /></div><div className="h-3 bg-[#111] rounded-md w-16" /></div>))}</div>}
+   549→
+   550→          {!isLoading && filteredTransactions.length === 0 && (
+   551→            <div className="text-center py-20 space-y-4">
+   552→              <div className="w-12 h-12 mx-auto rounded-lg bg-[#111] flex items-center justify-center"><Wallet className="w-5 h-5 text-white/10" /></div>
+   553→              <p className="text-[13px] font-medium text-white/40 tracking-[0.02em]">Нет транзакций</p>
+   554→              <p className="text-[12px] text-white/20 tracking-[0.02em]">{searchQuery ? 'Попробуйте изменить запрос' : 'Добавьте первую транзакцию'}</p>
+   555→              {!searchQuery && <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="inline-flex items-center gap-2 bg-[var(--brand)] text-white px-5 py-2.5 font-medium text-[10px] tracking-[0.08em] uppercase rounded-lg hover:bg-[var(--brand)]/80 transition-colors pill-press"><Plus className="w-3.5 h-3.5" /> Добавить</button>}
+   556→            </div>
+   557→          )}
+   558→
+   559→          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
+   560→            <div key={dateKey}>
+   561→              <div className="sticky top-14 z-10 py-3"><span className="text-[10px] font-medium text-white/20 tracking-[0.1em] uppercase">{fmtFullDate(txs[0].date)}</span></div>
+   562→              <div className="card-surface p-1">{txs.map(t => <TransactionRow key={t.id} t={t} isBalanceHidden={isBalanceHidden} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}</div>
+   563→            </div>
+   564→          ))}
+   565→        </section>
+   566→      </main>
+   567→
+   568→      {/* FAB */}
+   569→      <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="fixed bottom-6 right-6 h-12 w-12 bg-[var(--brand)] text-white flex items-center justify-center hover:bg-[var(--brand)]/80 transition-all sm:hidden z-30 rounded-xl pill-press"><Plus className="w-5 h-5" /></button>
+   570→      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 card-surface rounded-xl z-30 pill-press transition-colors hover:bg-[var(--surface-hover)]"><ChevronLeft className="w-4 h-4 rotate-90 text-white/30" /></button>}
+   571→
+   572→      {/* Add Dialog */}
+   573→      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+   574→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   575→          <DialogHeader><DialogTitle className="text-[11px] font-medium tracking-[0.1em] uppercase text-white/50">Новая транзакция</DialogTitle></DialogHeader>
+   576→          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   577→        </DialogContent>
+   578→      </Dialog>
+   579→
+   580→      {/* Edit Dialog */}
+   581→      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+   582→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   583→          <DialogHeader><DialogTitle className="text-[11px] font-medium tracking-[0.1em] uppercase text-white/50">Редактировать</DialogTitle></DialogHeader>
+   584→          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   585→        </DialogContent>
+   586→      </Dialog>
+   587→
+   588→      {/* Delete Dialog */}
+   589→      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+   590→        <AlertDialogContent className="dark-dialog">
+   591→          <AlertDialogHeader>
+   592→            <div className="flex items-center gap-3 mb-2">
+   593→              <div className="w-9 h-9 rounded-lg bg-[var(--expense-bg)] flex items-center justify-center"><Trash2 className="w-4 h-4 text-[var(--expense-color)]" /></div>
+   594→              <AlertDialogTitle className="text-[13px] font-medium tracking-[0.01em] text-white/80">Удалить?</AlertDialogTitle>
+   595→            </div>
+   596→            <AlertDialogDescription className="text-[12px] text-white/30 tracking-[0.02em]">Это действие нельзя отменить</AlertDialogDescription>
+   597→          </AlertDialogHeader>
+   598→          <AlertDialogFooter className="gap-2">
+   599→            <AlertDialogCancel className="font-medium rounded-lg bg-transparent text-white/40 hover:text-white/60 hover:bg-white/5 text-[11px] tracking-[0.04em] uppercase">Отмена</AlertDialogCancel>
+   600→            <AlertDialogAction onClick={handleDelete} className="bg-[var(--expense-color)] text-white hover:bg-[var(--expense-color)]/80 font-medium rounded-lg text-[11px] tracking-[0.04em] uppercase">Удалить</AlertDialogAction>
+   601→          </AlertDialogFooter>
+   602→        </AlertDialogContent>
+   603→      </AlertDialog>
+   604→
+   605→      {/* Settings Dialog */}
+   606→      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+   607→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   608→          <DialogHeader><DialogTitle className="text-[11px] font-medium tracking-[0.1em] uppercase text-white/50">Настройки площадок</DialogTitle></DialogHeader>
+   609→          <div className="space-y-5">
+   610→            <p className="text-[11px] text-white/25 tracking-[0.02em]">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
+   611→            <div className="space-y-1">
+   612→              {platforms.map(p => (
+   613→                <div key={p.name} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/[0.02] transition-colors border-b border-white/[0.03] last:border-0">
+   614→                  {p.icon && <PlatformIcon name={p.name} size={20} iconMap={iconMap} />}
+   615→                  {!p.icon && <div className="w-5 h-5 rounded-md bg-white/[0.04] flex items-center justify-center text-[9px] font-bold text-white/20">{p.name[0]}</div>}
+   616→                  <span className="text-[12px] font-medium flex-1 truncate text-white/50 tracking-[0.01em]">{p.name}</span>
+   617→                  <div className="flex items-center gap-1.5">
+   618→                    <Input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="h-7 w-16 text-[11px] rounded-md bg-[#111] border-white/[0.04] text-center font-medium tabular-nums text-white" />
+   619→                    <span className="text-[9px] text-white/20 font-medium tracking-[0.04em] uppercase">₽/отз</span>
+   620→                  </div>
+   621→                  <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-md hover:bg-[var(--expense-bg)] text-white/20 hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-3.5 h-3.5" /></button>
+   622→                </div>
+   623→              ))}
+   624→            </div>
+   625→            <div className="border border-dashed border-white/[0.08] rounded-lg p-4 space-y-3">
+   626→              <div className="flex items-center gap-2"><PlusCircle className="w-3.5 h-3.5 text-white/20" /><span className="text-[9px] font-medium text-white/20 tracking-[0.08em] uppercase">Добавить площадку</span></div>
+   627→              <div className="flex items-center gap-2">
+   628→                <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder="Название" className="h-8 text-[11px] rounded-md bg-[#111] border-white/[0.04] flex-1 text-white placeholder:text-white/10 tracking-[0.01em]" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   629→                <Input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="h-8 w-16 text-[11px] rounded-md bg-[#111] border-white/[0.04] text-center text-white" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   630→                <Button onClick={addPlatform} className="h-8 px-3 bg-[var(--brand)] text-white hover:bg-[var(--brand)]/80 font-medium rounded-md text-[10px] tracking-[0.06em] uppercase pill-press"><Plus className="w-3 h-3" /></Button>
+   631→              </div>
+   632→            </div>
+   633→          </div>
+   634→        </DialogContent>
+   635→      </Dialog>
+   636→    </div>
+   637→  )
+   638→}
+   639→

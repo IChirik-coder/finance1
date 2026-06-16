@@ -1,0 +1,616 @@
+     1→     1→     1→'use client'
+     2→     2→     2→
+     3→     3→     3→import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+     4→     4→     4→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+     5→     5→     5→import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
+     6→     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→     7→import { Button } from '@/components/ui/button'
+     8→     8→     8→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     9→     9→     9→import {
+    10→    10→    10→  Plus, X, ArrowUpRight, ArrowDownRight,
+    11→    11→    11→  ChevronLeft, ChevronRight, Pencil, Trash2, Loader2, Wallet,
+    12→    12→    12→  TrendingUp, TrendingDown, BarChart3, Settings, PlusCircle, MinusCircle,
+    13→    13→    13→} from 'lucide-react'
+    14→    14→    14→import { toast } from 'sonner'
+    15→    15→    15→import { format, isToday, isYesterday, getDaysInMonth } from 'date-fns'
+    16→    16→    16→
+    17→    17→    17→// ─── Types ───
+    18→    18→    18→
+    19→    19→    19→interface PlatformEntry { name: string; reviewCount: number }
+    20→    20→    20→interface PlatformConfig { name: string; fee: number; icon: string }
+    21→    21→    21→interface Transaction {
+    22→    22→    22→  id: string; type: 'income' | 'expense'; amount: number; description: string; date: string
+    23→    23→    23→  taxRate?: number | null; platforms?: PlatformEntry[] | null; category?: string | null
+    24→    24→    24→}
+    25→    25→    25→
+    26→    26→    26→// ─── Constants ───
+    27→    27→    27→
+    28→    28→    28→const DEFAULT_PLATFORMS: PlatformConfig[] = [
+    29→    29→    29→  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
+    30→    30→    30→  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
+    31→    31→    31→  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
+    32→    32→    32→  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
+    33→    33→    33→  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
+    34→    34→    34→  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
+    35→    35→    35→  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
+    36→    36→    36→  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
+    37→    37→    37→  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
+    38→    38→    38→  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
+    39→    39→    39→  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
+    40→    40→    40→  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
+    41→    41→    41→  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
+    42→    42→    42→]
+    43→    43→    43→
+    44→    44→    44→function loadPlatforms(): PlatformConfig[] {
+    45→    45→    45→  if (typeof window === 'undefined') return DEFAULT_PLATFORMS
+    46→    46→    46→  try { const s = localStorage.getItem('finance_platforms'); if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length > 0) return p } } catch {}
+    47→    47→    47→  return DEFAULT_PLATFORMS
+    48→    48→    48→}
+    49→    49→    49→function savePlatforms(p: PlatformConfig[]) { try { localStorage.setItem('finance_platforms', JSON.stringify(p)) } catch {} }
+    50→    50→    50→function buildFeeMap(p: PlatformConfig[]): Record<string, number> { const m: Record<string, number> = {}; for (const x of p) m[x.name] = x.fee; return m }
+    51→    51→    51→function buildIconMap(p: PlatformConfig[]): Record<string, string> { const m: Record<string, string> = {}; for (const x of p) m[x.name] = x.icon; return m }
+    52→    52→    52→
+    53→    53→    53→const EXPENSE_CATEGORIES = [
+    54→    54→    54→  { value: 'subscriptions', label: 'Подписки', icon: '📺' },
+    55→    55→    55→  { value: 'transport', label: 'Транспорт', icon: '🚗' },
+    56→    56→    56→  { value: 'food', label: 'Еда', icon: '🍕' },
+    57→    57→    57→  { value: 'office', label: 'Офис', icon: '💻' },
+    58→    58→    58→  { value: 'marketing', label: 'Маркетинг', icon: '📢' },
+    59→    59→    59→  { value: 'taxes', label: 'Налоги', icon: '📋' },
+    60→    60→    60→  { value: 'education', label: 'Обучение', icon: '📚' },
+    61→    61→    61→  { value: 'other', label: 'Другое', icon: '📦' },
+    62→    62→    62→] as const
+    63→    63→    63→
+    64→    64→    64→const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    65→    65→    65→const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+    66→    66→    66→const _cf = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 })
+    67→    67→    67→
+    68→    68→    68→// ─── Helpers ───
+    69→    69→    69→
+    70→    70→    70→function fmtCur(n: number): string {
+    71→    71→    71→  const a = Math.abs(n); if (a >= 1_000_000) return `${(n/1_000_000).toFixed(1).replace(/\.0$/,'')} млн ₽`; if (a >= 100_000) return `${(n/1_000).toFixed(0)} тыс ₽`; return _cf.format(n)
+    72→    72→    72→}
+    73→    73→    73→function fmtFull(n: number) { return _cf.format(n) }
+    74→    74→    74→function fmtDate(d: string) { const dt = new Date(d); return `${dt.getDate()} ${MONTHS_GEN[dt.getMonth()]}` }
+    75→    75→    75→function fmtFullDate(d: string) { const dt = new Date(d); if (isToday(dt)) return 'Сегодня'; if (isYesterday(dt)) return 'Вчера'; return fmtDate(d) }
+    76→    76→    76→function parsePlatforms(p: string | PlatformEntry[] | null | undefined): PlatformEntry[] { if (!p) return []; if (Array.isArray(p)) return p; try { return JSON.parse(p) } catch { return [] } }
+    77→    77→    77→function getNet(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return t.amount; let n = t.amount; if (t.taxRate) n -= (t.taxRate/100)*t.amount; for (const p of parsePlatforms(t.platforms)) n -= (fm[p.name]||0)*p.reviewCount; return n }
+    78→    78→    78→function getFee(t: Transaction, fm: Record<string, number>): number { if (t.type === 'expense') return 0; let f = 0; for (const p of parsePlatforms(t.platforms)) f += (fm[p.name]||0)*p.reviewCount; return f }
+    79→    79→    79→function getTax(t: Transaction): number { if (t.type === 'expense' || !t.taxRate) return 0; return (t.taxRate/100)*t.amount }
+    80→    80→    80→function pluralize(n: number): string { const a = Math.abs(n)%100, a1=a%10; if (a>10&&a<20) return 'записей'; if (a1>1&&a1<5) return 'записи'; if (a1===1) return 'запись'; return 'записей' }
+    81→    81→    81→function groupByDate(txs: Transaction[]): Record<string, Transaction[]> { const g: Record<string, Transaction[]> = {}; for (const t of txs) { const k = format(new Date(t.date),'yyyy-MM-dd'); if (!g[k]) g[k]=[]; g[k].push(t) } return Object.fromEntries(Object.entries(g).sort(([a],[b])=>b.localeCompare(a))) }
+    82→    82→    82→
+    83→    83→    83→// ─── Data fetching ───
+    84→    84→    84→
+    85→    85→    85→async function fetchTransactions(m: number, y: number): Promise<Transaction[]> {
+    86→    86→    86→  const r = await fetch(`/api/transactions?month=${m}&year=${y}`, {
+    87→    87→    87→    cache: 'no-store',
+    88→    88→    88→    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+    89→    89→    89→  })
+    90→    90→    90→  if (!r.ok) throw new Error()
+    91→    91→    91→  return r.json()
+    92→    92→    92→}
+    93→    93→    93→
+    94→    94→    94→// ─── Sub-components ───
+    95→    95→    95→
+    96→    96→    96→const PlatformIcon = memo(function PlatformIcon({ name, size = 16, iconMap }: { name: string; size?: 12|16|20|24; iconMap: Record<string,string> }) {
+    97→    97→    97→  const icon = iconMap[name]; if (!icon) return null; return <img src={icon} alt={name} width={size} height={size} className="inline-block rounded-sm opacity-80" />
+    98→    98→    98→})
+    99→    99→    99→
+   100→   100→   100→const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMap, iconMap }: {
+   101→   101→   101→  t: Transaction; onEdit: (t: Transaction) => void; onDelete: (id: string) => void; feeMap: Record<string,number>; iconMap: Record<string,string>
+   102→   102→   102→}) {
+   103→   103→   103→  const isIncome = t.type === 'income'
+   104→   104→   104→  const platforms = parsePlatforms(t.platforms)
+   105→   105→   105→  const catObj = EXPENSE_CATEGORIES.find(c => c.value === t.category)
+   106→   106→   106→
+   107→   107→   107→  return (
+   108→   108→   108→    <div className="group flex items-center gap-4 py-5 px-2 border-b border-[#DDDDDD] last:border-0 hover:bg-[#F8F8F8] transition-all duration-500">
+   109→   109→   109→      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full ${
+   110→   110→   110→        isIncome ? 'bg-[var(--income-bg)] text-[var(--income-color)]' : 'bg-[var(--expense-bg)] text-[var(--expense-color)]'
+   111→   111→   111→      }`}>
+   112→   112→   112→        {isIncome ? <ArrowUpRight className="w-4 h-4" /> : catObj ? <span className="text-sm">{catObj.icon}</span> : <ArrowDownRight className="w-4 h-4" />}
+   113→   113→   113→      </div>
+   114→   114→   114→      <div className="flex-1 min-w-0">
+   115→   115→   115→        <div className="font-medium text-[16px] text-black truncate" style={{fontFamily:'"Hel", "Inter", sans-serif', textTransform:'uppercase'}}>{t.description}</div>
+   116→   116→   116→        <div className="flex flex-wrap items-center gap-2 mt-1">
+   117→   117→   117→          {t.category && catObj && <span className="text-[12px] text-[#747474] uppercase">{catObj.label}</span>}
+   118→   118→   118→          {platforms.map((p, i) => (
+   119→   119→   119→            <span key={i} className="inline-flex items-center gap-1 text-[#747474] text-[12px] uppercase">
+   120→   120→   120→              <PlatformIcon name={p.name} size={12} iconMap={iconMap} />{p.reviewCount}
+   121→   121→   121→            </span>
+   122→   122→   122→          ))}
+   123→   123→   123→          {isIncome && t.taxRate && <span className="text-[12px] text-[var(--brand)] uppercase">-{t.taxRate}%</span>}
+   124→   124→   124→          <span className="text-[12px] text-[#747474] uppercase">{fmtDate(t.date)}</span>
+   125→   125→   125→          {isIncome && platforms.length > 0 && <span className="text-[12px] text-[#747474] uppercase">комиссии: {fmtCur(getFee(t, feeMap))}</span>}
+   126→   126→   126→        </div>
+   127→   127→   127→      </div>
+   128→   128→   128→      <div className="flex-shrink-0 flex items-center gap-3">
+   129→   129→   129→        <span className={`font-medium text-[16px] tabular-nums ${isIncome ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`} style={{fontFamily:'"Mod", cursive', fontWeight:500}}>
+   130→   130→   130→          {`${isIncome ? '+' : '−'}${fmtCur(t.amount)}`}
+   131→   131→   131→        </span>
+   132→   132→   132→        <div className="flex gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+   133→   133→   133→          <button onClick={() => onEdit(t)} className="p-2 rounded-full hover:bg-[#F0F0F0] transition-colors"><Pencil className="w-3.5 h-3.5 text-[#747474]" /></button>
+   134→   134→   134→          <button onClick={() => onDelete(t.id)} className="p-2 rounded-full hover:bg-[#F0F0F0] transition-colors"><Trash2 className="w-3.5 h-3.5 text-[#747474]" /></button>
+   135→   135→   135→        </div>
+   136→   136→   136→      </div>
+   137→   137→   137→    </div>
+   138→   138→   138→  )
+   139→   139→   139→})
+   140→   140→   140→
+   141→   141→   141→const StatCard = memo(function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+   142→   142→   142→  return (
+   143→   143→   143→    <div className="card-surface p-6 card-hover">
+   144→   144→   144→      <div className="flex items-center gap-2 mb-3"><span className="text-[var(--brand)]">{icon}</span><span className="text-[12px] font-medium text-[#747474] uppercase">{label}</span></div>
+   145→   145→   145→      <div className="forn-heading text-[24px] tabular-nums">{value}</div>
+   146→   146→   146→    </div>
+   147→   147→   147→  )
+   148→   148→   148→})
+   149→   149→   149→
+   150→   150→   150→// ─── Transaction Form ───
+   151→   151→   151→
+   152→   152→   152→function TransactionForm({ type, setType, amount, setAmount, description, setDescription, date, setDate, taxRate, setTaxRate, platforms, togglePlatform, setPlatformReviewCount, category, setCategory, isSubmitting, onSubmit, submitLabel, platformsList, feeMap, iconMap }: {
+   153→   153→   153→  type: string; setType: (v: string) => void; amount: string; setAmount: (v: string) => void; description: string; setDescription: (v: string) => void; date: string; setDate: (v: string) => void; taxRate: string; setTaxRate: (v: string) => void; platforms: PlatformEntry[]; togglePlatform: (name: string) => void; setPlatformReviewCount: (name: string, count: number) => void; category: string; setCategory: (v: string) => void; isSubmitting: boolean; onSubmit: () => void; submitLabel: string; platformsList: PlatformConfig[]; feeMap: Record<string,number>; iconMap: Record<string,string>
+   154→   154→   154→}) {
+   155→   155→   155→  const isIncome = type === 'income'
+   156→   156→   156→  const selectedPlatforms = platforms.filter(p => p.reviewCount > 0)
+   157→   157→   157→  const numAmount = parseFloat(amount) || 0
+   158→   158→   158→  const totalExecutorFee = selectedPlatforms.reduce((s, p) => s + (feeMap[p.name]||0)*p.reviewCount, 0)
+   159→   159→   159→  const totalTax = (taxRate==='4'||taxRate==='6') ? (parseInt(taxRate)/100)*numAmount : 0
+   160→   160→   160→  const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
+   161→   161→   161→
+   162→   162→   162→  return (
+   163→   163→   163→    <div className="space-y-6">
+   164→   164→   164→      {/* Type toggle */}
+   165→   165→   165→      <div className="flex bg-[#F5F5F5] rounded-full p-1 gap-1">
+   166→   166→   166→        <button type="button" onClick={() => setType('income')} className={`flex-1 h-11 text-[14px] font-medium uppercase rounded-full transition-all duration-300 ${isIncome ? 'bg-[var(--brand)] text-white' : 'text-[#747474] hover:text-black'}`}>Доход</button>
+   167→   167→   167→        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} className={`flex-1 h-11 text-[14px] font-medium uppercase rounded-full transition-all duration-300 ${!isIncome ? 'bg-black text-white' : 'text-[#747474] hover:text-black'}`}>Расход</button>
+   168→   168→   168→      </div>
+   169→   169→   169→      {/* Amount */}
+   170→   170→   170→      <div className="relative">
+   171→   171→   171→        <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="text-4xl font-light h-20 pr-14 rounded-[20px] bg-[#F5F5F5] border-[#DDDDDD] tabular-nums text-black" style={{fontFamily:'"Mod", cursive'}} min="0" step="any" />
+   172→   172→   172→        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-2xl font-light text-[#747474]" style={{fontFamily:'"Mod", cursive'}}>₽</span>
+   173→   173→   173→      </div>
+   174→   174→   174→      {/* Category */}
+   175→   175→   175→      {!isIncome && (
+   176→   176→   176→        <div>
+   177→   177→   177→          <label className="text-[12px] font-medium text-[#747474] mb-3 block uppercase">Категория</label>
+   178→   178→   178→          <div className="grid grid-cols-4 gap-2">
+   179→   179→   179→            {EXPENSE_CATEGORIES.map(c => (
+   180→   180→   180→              <button key={c.value} type="button" onClick={() => setCategory(c.value)} className={`flex flex-col items-center gap-1.5 p-3 text-[11px] uppercase rounded-[20px] transition-all duration-300 ${category===c.value ? 'bg-black text-white font-medium' : 'bg-[#F5F5F5] text-[#747474] hover:bg-[#E8E8E8]'}`}>
+   181→   181→   181→                <span className="text-base">{c.icon}</span><span>{c.label}</span>
+   182→   182→   182→              </button>
+   183→   183→   183→            ))}
+   184→   184→   184→          </div>
+   185→   185→   185→        </div>
+   186→   186→   186→      )}
+   187→   187→   187→      {/* Platforms */}
+   188→   188→   188→      {isIncome && (
+   189→   189→   189→        <div>
+   190→   190→   190→          <label className="text-[12px] font-medium text-[#747474] mb-3 block uppercase">Площадки</label>
+   191→   191→   191→          <div className="grid grid-cols-3 gap-2">
+   192→   192→   192→            {platformsList.map(p => {
+   193→   193→   193→              const sel = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
+   194→   194→   194→              return (
+   195→   195→   195→                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} className={`flex items-center gap-1.5 p-3 text-[11px] rounded-[20px] transition-all duration-300 uppercase ${sel ? 'bg-[var(--brand)] text-white font-medium' : 'bg-[#F5F5F5] text-[#747474] hover:bg-[#E8E8E8]'}`}>
+   196→   196→   196→                  <PlatformIcon name={p.name} size={14} iconMap={iconMap} /><span className="truncate">{p.name}</span>
+   197→   197→   197→                </button>
+   198→   198→   198→              )
+   199→   199→   199→            })}
+   200→   200→   200→          </div>
+   201→   201→   201→        </div>
+   202→   202→   202→      )}
+   203→   203→   203→      {/* Review counts */}
+   204→   204→   204→      {isIncome && selectedPlatforms.length > 0 && (
+   205→   205→   205→        <div className="space-y-2">
+   206→   206→   206→          <label className="text-[12px] font-medium text-[#747474] uppercase">Количество отзывов</label>
+   207→   207→   207→          {selectedPlatforms.map(p => (
+   208→   208→   208→            <div key={p.name} className="flex items-center gap-3 bg-[#F5F5F5] rounded-[20px] p-4 border border-[#DDDDDD]">
+   209→   209→   209→              <PlatformIcon name={p.name} size={20} iconMap={iconMap} />
+   210→   210→   210→              <span className="text-[14px] font-medium flex-shrink-0 text-black uppercase">{p.name}</span>
+   211→   211→   211→              <Input type="number" min="1" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="h-8 w-20 text-[14px] rounded-full bg-white border-[#DDDDDD] tabular-nums text-black" />
+   212→   212→   212→              <span className="text-[12px] text-[#747474] tabular-nums uppercase">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
+   213→   213→   213→              <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="ml-auto p-1.5 rounded-full hover:bg-[#E8E8E8] transition-colors"><X className="w-3.5 h-3.5 text-[#747474]" /></button>
+   214→   214→   214→            </div>
+   215→   215→   215→          ))}
+   216→   216→   216→        </div>
+   217→   217→   217→      )}
+   218→   218→   218→      {/* Tax */}
+   219→   219→   219→      {isIncome && (
+   220→   220→   220→        <div>
+   221→   221→   221→          <label className="text-[12px] font-medium text-[#747474] mb-3 block uppercase">Налоговый вычет</label>
+   222→   222→   222→          <div className="flex bg-[#F5F5F5] rounded-full p-1 gap-1">
+   223→   223→   223→            {(['none','4','6'] as const).map(rate => (
+   224→   224→   224→              <button key={rate} type="button" onClick={() => setTaxRate(rate)} className={`flex-1 h-11 text-[14px] font-medium uppercase rounded-full transition-all duration-300 ${taxRate===rate ? (rate==='none' ? 'bg-[#E0E0E0] text-black' : 'bg-[var(--brand)] text-white') : 'text-[#747474] hover:text-black'}`}>
+   225→   225→   225→                {rate==='none' ? 'Без вычета' : `${rate}%`}
+   226→   226→   226→              </button>
+   227→   227→   227→            ))}
+   228→   228→   228→          </div>
+   229→   229→   229→        </div>
+   230→   230→   230→      )}
+   231→   231→   231→      {/* Description */}
+   232→   232→   232→      <div>
+   233→   233→   233→        <label className="text-[12px] font-medium text-[#747474] mb-3 block uppercase">Описание</label>
+   234→   234→   234→        <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="За что?" className="h-12 rounded-[20px] bg-[#F5F5F5] border-[#DDDDDD] text-black placeholder:text-[#B0B0B0] uppercase" />
+   235→   235→   235→      </div>
+   236→   236→   236→      {/* Date */}
+   237→   237→   237→      <div>
+   238→   238→   238→        <label className="text-[12px] font-medium text-[#747474] mb-3 block uppercase">Дата</label>
+   239→   239→   239→        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-12 rounded-[20px] bg-[#F5F5F5] border-[#DDDDDD] text-black" />
+   240→   240→   240→      </div>
+   241→   241→   241→      {/* Net calculation */}
+   242→   242→   242→      {isIncome && numAmount > 0 && (totalTax > 0 || totalExecutorFee > 0) && (
+   243→   243→   243→        <div className="bg-[#F5F5F5] border border-[#DDDDDD] rounded-[20px] p-5 space-y-3">
+   244→   244→   244→          <div className="text-[12px] font-medium text-[#747474] uppercase">Итого</div>
+   245→   245→   245→          <div className="space-y-2">
+   246→   246→   246→            <div className="flex justify-between text-[14px]"><span className="text-[#747474]">Сумма</span><span className="tabular-nums text-black">{fmtCur(numAmount)}</span></div>
+   247→   247→   247→            {totalTax > 0 && <div className="flex justify-between text-[14px]"><span className="text-[#747474]">Налог</span><span className="tabular-nums text-[var(--brand)]">−{fmtCur(totalTax)}</span></div>}
+   248→   248→   248→            {totalExecutorFee > 0 && <div className="flex justify-between text-[14px]"><span className="text-[#747474]">Исполнители</span><span className="tabular-nums text-[var(--brand)]">−{fmtCur(totalExecutorFee)}</span></div>}
+   249→   249→   249→            <div className="section-divider my-2" />
+   250→   250→   250→            <div className="flex justify-between text-[16px] font-medium"><span className="text-black">Чистый доход</span><span className="tabular-nums text-[var(--income-color)]" style={{fontFamily:'"Mod", cursive', fontWeight:500}}>{fmtCur(netAmount)}</span></div>
+   251→   251→   251→          </div>
+   252→   252→   252→        </div>
+   253→   253→   253→      )}
+   254→   254→   254→      {/* Submit */}
+   255→   255→   255→      <Button onClick={onSubmit} disabled={isSubmitting || !amount || !description} className="w-full h-14 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white font-medium rounded-full text-[14px] uppercase pill-press disabled:opacity-30">
+   256→   256→   256→        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : submitLabel}
+   257→   257→   257→      </Button>
+   258→   258→   258→    </div>
+   259→   259→   259→  )
+   260→   260→   260→}
+   261→   261→   261→
+   262→   262→   262→// ─── Main Component ───
+   263→   263→   263→
+   264→   264→   264→export default function Home() {
+   265→   265→   265→  const now = new Date()
+   266→   266→   266→
+   267→   267→   267→  const [platforms, setPlatforms] = useState<PlatformConfig[]>(DEFAULT_PLATFORMS)
+   268→   268→   268→  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+   269→   269→   269→  const [newPlatformName, setNewPlatformName] = useState('')
+   270→   270→   270→  const [newPlatformFee, setNewPlatformFee] = useState('25')
+   271→   271→   271→
+   272→   272→   272→  useEffect(() => { setPlatforms(loadPlatforms()) }, [])
+   273→   273→   273→
+   274→   274→   274→  const feeMap = useMemo(() => buildFeeMap(platforms), [platforms])
+   275→   275→   275→  const iconMap = useMemo(() => buildIconMap(platforms), [platforms])
+   276→   276→   276→
+   277→   277→   277→  const updatePlatformFee = useCallback((name: string, fee: number) => { setPlatforms(prev => { const u = prev.map(p => p.name===name?{...p,fee}:p); savePlatforms(u); return u }) }, [])
+   278→   278→   278→  const removePlatform = useCallback((name: string) => { setPlatforms(prev => { const u = prev.filter(p => p.name!==name); savePlatforms(u); return u }) }, [])
+   279→   279→   279→  const addPlatform = useCallback(() => { const t = newPlatformName.trim(); if (!t) { toast.error('Введите название площадки'); return } if (platforms.some(p => p.name.toLowerCase()===t.toLowerCase())) { toast.error('Такая площадка уже есть'); return } const f = parseInt(newPlatformFee)||0; if (f<=0) { toast.error('Укажите цену больше 0'); return } setPlatforms(prev => { const u = [...prev, {name:t,fee:f,icon:''}]; savePlatforms(u); return u }); setNewPlatformName(''); setNewPlatformFee('25') }, [newPlatformName, newPlatformFee, platforms])
+   280→   280→   280→
+   281→   281→   281→  const [transactions, setTransactions] = useState<Transaction[]>([])
+   282→   282→   282→  const [isLoading, setIsLoading] = useState(true)
+   283→   283→   283→  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()+1)
+   284→   284→   284→  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+   285→   285→   285→  const [isDialogOpen, setIsDialogOpen] = useState(false)
+   286→   286→   286→  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+   287→   287→   287→  const [deleteTarget, setDeleteTarget] = useState<string|null>(null)
+   288→   288→   288→  const [filterTab, setFilterTab] = useState<'all'|'income'|'expense'>('all')
+   289→   289→   289→  const [isSubmitting, setIsSubmitting] = useState(false)
+   290→   290→   290→  const [showScrollTop, setShowScrollTop] = useState(false)
+   291→   291→   291→
+   292→   292→   292→  // Add form
+   293→   293→   293→  const [formType, setFormType] = useState('income')
+   294→   294→   294→  const [formAmount, setFormAmount] = useState('')
+   295→   295→   295→  const [formDescription, setFormDescription] = useState('')
+   296→   296→   296→  const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
+   297→   297→   297→  const [formTaxRate, setFormTaxRate] = useState('none')
+   298→   298→   298→  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>([])
+   299→   299→   299→  const [formCategory, setFormCategory] = useState('')
+   300→   300→   300→
+   301→   301→   301→  // Edit form
+   302→   302→   302→  const [editId, setEditId] = useState('')
+   303→   303→   303→  const [editType, setEditType] = useState('income')
+   304→   304→   304→  const [editAmount, setEditAmount] = useState('')
+   305→   305→   305→  const [editDescription, setEditDescription] = useState('')
+   306→   306→   306→  const [editDate, setEditDate] = useState('')
+   307→   307→   307→  const [editTaxRate, setEditTaxRate] = useState('none')
+   308→   308→   308→  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>([])
+   309→   309→   309→  const [editCategory, setEditCategory] = useState('')
+   310→   310→   310→
+   311→   311→   311→  const resetAddForm = useCallback(() => { setFormType('income'); setFormAmount(''); setFormDescription(''); setFormDate(format(new Date(), 'yyyy-MM-dd')); setFormTaxRate('none'); setFormPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))); setFormCategory('') }, [platforms])
+   312→   312→   312→
+   313→   313→   313→  // Data loading
+   314→   314→   314→  useEffect(() => { (async () => { setIsLoading(true); try { const r = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }); if (!r.ok) throw new Error(); setTransactions(await r.json()) } catch { toast.error('Ошибка загрузки') } setIsLoading(false) })() }, [selectedMonth, selectedYear])
+   315→   315→   315→
+   316→   316→   316→  // Scroll listener
+   317→   317→   317→  useEffect(() => { const h = () => setShowScrollTop(window.scrollY > 400); window.addEventListener('scroll', h, {passive:true}); return () => window.removeEventListener('scroll', h) }, [])
+   318→   318→   318→
+   319→   319→   319→  // Derived stats
+   320→   320→   320→  const stats = useMemo(() => {
+   321→   321→   321→    const income = transactions.filter(t=>t.type==='income'); const expense = transactions.filter(t=>t.type==='expense')
+   322→   322→   322→    const totalIncome = income.reduce((s,t)=>s+getNet(t,feeMap),0); const totalGrossIncome = income.reduce((s,t)=>s+t.amount,0)
+   323→   323→   323→    const totalExpense = expense.reduce((s,t)=>s+t.amount,0); const totalTax = income.reduce((s,t)=>s+getTax(t),0)
+   324→   324→   324→    const totalExecutorFee = income.reduce((s,t)=>s+getFee(t,feeMap),0)
+   325→   325→   325→    const maxIncome = income.length?Math.max(...income.map(t=>t.amount)):0; const maxExpense = expense.length?Math.max(...expense.map(t=>t.amount)):0
+   326→   326→   326→    const avgIncome = income.length?income.reduce((s,t)=>s+t.amount,0)/income.length:0; const avgExpense = expense.length?expense.reduce((s,t)=>s+t.amount,0)/expense.length:0
+   327→   327→   327→    const expenseRatio = totalIncome>0?(totalExpense/totalGrossIncome)*100:0
+   328→   328→   328→    const categoryBreakdown: Record<string,number> = {}; for (const t of expense) { if(t.category) categoryBreakdown[t.category] = (categoryBreakdown[t.category]||0)+t.amount }
+   329→   329→   329→    const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth-1)); const dailyData: Record<number,{income:number;expense:number}> = {}
+   330→   330→   330→    for(let d=1;d<=daysInMonth;d++) dailyData[d]={income:0,expense:0}
+   331→   331→   331→    for(const t of transactions){const d=new Date(t.date).getDate();if(t.type==='income')dailyData[d].income+=t.amount;else dailyData[d].expense+=t.amount}
+   332→   332→   332→    const maxDaily = Math.max(...Object.values(dailyData).flatMap(d=>[d.income,d.expense]),1)
+   333→   333→   333→    return { totalIncome, totalGrossIncome, totalExpense, totalTax, totalExecutorFee, balance:totalIncome-totalExpense, maxIncome, maxExpense, avgIncome, avgExpense, expenseRatio, categoryBreakdown, dailyData, maxDaily }
+   334→   334→   334→  }, [transactions, feeMap])
+   335→   335→   335→
+   336→   336→   336→  const chartDays = useMemo(() => { const n = getDaysInMonth(new Date(selectedYear, selectedMonth-1)); return Array.from({length:n},(_,i)=>i+1) }, [selectedMonth, selectedYear])
+   337→   337→   337→
+   338→   338→   338→  // Filtered
+   339→   339→   339→  const filteredTransactions = useMemo(() => { let f = [...transactions]; if(filterTab==='income') f=f.filter(t=>t.type==='income'); if(filterTab==='expense') f=f.filter(t=>t.type==='expense'); return f.sort((a,b)=>{ const dd=new Date(b.date).getTime()-new Date(a.date).getTime(); if(dd!==0) return dd; return b.id>a.id?1:b.id<a.id?-1:0 }) }, [transactions, filterTab])
+   340→   340→   340→  const groupedTransactions = useMemo(() => groupByDate(filteredTransactions), [filteredTransactions])
+   341→   341→   341→
+   342→   342→   342→  // Navigation
+   343→   343→   343→  const goToPrevMonth = useCallback(() => { setSelectedMonth(prev => { if(prev===1){setSelectedYear(y=>y-1);return 12} return prev-1 }) }, [])
+   344→   344→   344→  const goToNextMonth = useCallback(() => { setSelectedMonth(prev => { if(prev===12){setSelectedYear(y=>y+1);return 1} return prev+1 }) }, [])
+   345→   345→   345→  const goToCurrentMonth = useCallback(() => { const n=new Date(); setSelectedMonth(n.getMonth()+1); setSelectedYear(n.getFullYear()) }, [])
+   346→   346→   346→  const isCurrentMonth = selectedMonth===now.getMonth()+1 && selectedYear===now.getFullYear()
+   347→   347→   347→
+   348→   348→   348→  // CRUD
+   349→   349→   349→  const togglePlatform = useCallback((name:string) => { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }, [])
+   350→   350→   350→  const setPlatformReviewCount = useCallback((name:string,count:number) => { setFormPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }, [])
+   351→   351→   351→  const toggleEditPlatform = useCallback((name:string) => { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:p.reviewCount>0?0:1}:p)) }, [])
+   352→   352→   352→  const setEditPlatformReviewCount = useCallback((name:string,count:number) => { setEditPlatforms(prev => prev.map(p => p.name===name?{...p,reviewCount:count}:p)) }, [])
+   353→   353→   353→
+   354→   354→   354→  const refreshData = useCallback(async () => {
+   355→   355→   355→    try {
+   356→   356→   356→      const r = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&_t=${Date.now()}`, {
+   357→   357→   357→        cache: 'no-store',
+   358→   358→   358→        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+   359→   359→   359→      })
+   360→   360→   360→      if (!r.ok) throw new Error()
+   361→   361→   361→      const data = await r.json()
+   362→   362→   362→      setTransactions(data)
+   363→   363→   363→      return true
+   364→   364→   364→    } catch { return false }
+   365→   365→   365→  }, [selectedMonth, selectedYear])
+   366→   366→   366→
+   367→   367→   367→  const handleAddSubmit = useCallback(async () => {
+   368→   368→   368→    if(!formAmount||!formDescription) return; setIsSubmitting(true)
+   369→   369→   369→    try { const r=await fetch('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:formType,amount:parseFloat(formAmount),description:formDescription,date:formDate,taxRate:formTaxRate==='none'?null:parseInt(formTaxRate),platforms:formPlatforms.filter(p=>p.reviewCount>0),category:formType==='expense'?formCategory||null:null})}); if(!r.ok) throw new Error(); await refreshData(); setIsDialogOpen(false); resetAddForm() }
+   370→   370→   370→    catch{toast.error('Ошибка добавления')} finally{setIsSubmitting(false)}
+   371→   371→   371→  }, [formType,formAmount,formDescription,formDate,formTaxRate,formPlatforms,formCategory,resetAddForm,refreshData])
+   372→   372→   372→
+   373→   373→   373→  const openEditDialog = useCallback((t:Transaction) => { setEditId(t.id); setEditType(t.type); setEditAmount(t.amount.toString()); setEditDescription(t.description); setEditDate(t.date); setEditTaxRate(t.taxRate?t.taxRate.toString():'none'); setEditPlatforms(parsePlatforms(t.platforms).length?parsePlatforms(t.platforms):platforms.map(p=>({name:p.name,reviewCount:0}))); setEditCategory(t.category||''); setIsEditDialogOpen(true) }, [platforms])
+   374→   374→   374→
+   375→   375→   375→  const handleEditSubmit = useCallback(async () => {
+   376→   376→   376→    if(!editAmount||!editDescription) return; setIsSubmitting(true)
+   377→   377→   377→    try { const r=await fetch('/api/transactions',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,type:editType,amount:parseFloat(editAmount),description:editDescription,date:editDate,taxRate:editTaxRate==='none'?null:parseInt(editTaxRate),platforms:editPlatforms.filter(p=>p.reviewCount>0),category:editType==='expense'?editCategory||null:null})}); if(!r.ok) throw new Error(); await refreshData(); setIsEditDialogOpen(false) }
+   378→   378→   378→    catch{toast.error('Ошибка обновления')} finally{setIsSubmitting(false)}
+   379→   379→   379→  }, [editId,editType,editAmount,editDescription,editDate,editTaxRate,editPlatforms,editCategory,refreshData])
+   380→   380→   380→
+   381→   381→   381→  const handleDelete = useCallback(async () => {
+   382→   382→   382→    if(!deleteTarget) return; setIsSubmitting(true)
+   383→   383→   383→    try { const r=await fetch('/api/transactions',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:deleteTarget})}); if(!r.ok) throw new Error(); await refreshData(); setDeleteTarget(null) }
+   384→   384→   384→    catch{toast.error('Ошибка удаления')} finally{setIsSubmitting(false)}
+   385→   385→   385→  }, [deleteTarget,refreshData])
+   386→   386→   386→
+   387→   387→   387→  return (
+   388→   388→   388→    <div className="min-h-screen bg-[#FCFCFC] text-black">
+   389→   389→   389→      {/* ── Navigation (FORN style) ── */}
+   390→   390→   390→      <nav className="fixed top-0 left-0 right-0 z-50 nav-bar">
+   391→   391→   391→        <div className="max-w-[1920px] mx-auto px-5 h-16 flex items-center justify-between">
+   392→   392→   392→          <div className="flex items-center gap-3">
+   393→   393→   393→            <div className="w-8 h-8 rounded-full bg-[var(--brand)] flex items-center justify-center">
+   394→   394→   394→              <span className="text-white text-[12px] font-bold" style={{fontFamily:'"Mod", cursive'}}>₽</span>
+   395→   395→   395→            </div>
+   396→   396→   396→            <span className="text-[16px] font-medium uppercase text-black" style={{fontFamily:'"Mod", cursive'}}>Финансы</span>
+   397→   397→   397→          </div>
+   398→   398→   398→          <div className="flex items-center gap-2">
+   399→   399→   399→            <button onClick={() => setIsSettingsOpen(true)} className="forn-button text-black" title="Настройки"><Settings className="w-4 h-4" /></button>
+   400→   400→   400→            <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="forn-button bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]">
+   401→   401→   401→              <Plus className="w-4 h-4" /><span className="text-[14px]">Добавить</span>
+   402→   402→   402→            </button>
+   403→   403→   403→          </div>
+   404→   404→   404→        </div>
+   405→   405→   405→      </nav>
+   406→   406→   406→
+   407→   407→   407→      {/* ── Main Content ── */}
+   408→   408→   408→      <main className="max-w-[1920px] mx-auto px-5 pt-28 pb-28">
+   409→   409→   409→        {/* Hero Section — FORN style large headings */}
+   410→   410→   410→        <section className="mb-16 animate-fade-in-up">
+   411→   411→   411→          {/* Month navigation */}
+   412→   412→   412→          <div className="flex items-center justify-between mb-16">
+   413→   413→   413→            <button onClick={goToPrevMonth} className="p-3 rounded-full hover:bg-[#F0F0F0] transition-colors pill-press"><ChevronLeft className="w-5 h-5 text-[#747474]" /></button>
+   414→   414→   414→            <div className="flex items-center gap-4">
+   415→   415→   415→              <h1 className="forn-heading text-[80px] sm:text-[120px] md:text-[160px] leading-none">{MONTHS_RU[selectedMonth-1].toLowerCase()}</h1>
+   416→   416→   416→              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="forn-button bg-[#F5F5F5] text-black hover:text-[var(--brand)] text-[12px]">Сегодня</button>}
+   417→   417→   417→            </div>
+   418→   418→   418→            <button onClick={goToNextMonth} className="p-3 rounded-full hover:bg-[#F0F0F0] transition-colors pill-press"><ChevronRight className="w-5 h-5 text-[#747474]" /></button>
+   419→   419→   419→          </div>
+   420→   420→   420→
+   421→   421→   421→          {/* Balance — FORN large display heading */}
+   422→   422→   422→          <div className="mb-16">
+   423→   423→   423→            <span className="text-[12px] font-medium text-[#747474] uppercase block mb-4">Баланс</span>
+   424→   424→   424→            <div className="forn-heading text-[64px] sm:text-[80px] md:text-[120px] leading-none tabular-nums">
+   425→   425→   425→              {fmtCur(stats.balance)}
+   426→   426→   426→            </div>
+   427→   427→   427→          </div>
+   428→   428→   428→
+   429→   429→   429→          {/* Income / Expense row — FORN bento cards */}
+   430→   430→   430→          <div className="grid grid-cols-2 gap-5">
+   431→   431→   431→            <div className="card-surface p-8 card-hover">
+   432→   432→   432→              <div className="flex items-center gap-3 mb-4">
+   433→   433→   433→                <div className="w-8 h-8 rounded-full bg-[var(--income-bg)] flex items-center justify-center"><ArrowUpRight className="w-4 h-4 text-[var(--income-color)]" /></div>
+   434→   434→   434→                <span className="text-[12px] font-medium text-[#747474] uppercase">Доходы</span>
+   435→   435→   435→              </div>
+   436→   436→   436→              <div className="forn-heading text-[36px] sm:text-[48px] tabular-nums text-[var(--income-color)]">{fmtCur(stats.totalIncome)}</div>
+   437→   437→   437→              {stats.totalGrossIncome !== stats.totalIncome && <div className="text-[12px] text-[#747474] mt-2 tabular-nums uppercase">Гросс {fmtCur(stats.totalGrossIncome)}{stats.totalTax>0&&` · Налог ${fmtCur(stats.totalTax)}`}{stats.totalExecutorFee>0&&` · Исполнители ${fmtCur(stats.totalExecutorFee)}`}</div>}
+   438→   438→   438→            </div>
+   439→   439→   439→            <div className="card-surface p-8 card-hover">
+   440→   440→   440→              <div className="flex items-center gap-3 mb-4">
+   441→   441→   441→                <div className="w-8 h-8 rounded-full bg-[var(--expense-bg)] flex items-center justify-center"><ArrowDownRight className="w-4 h-4 text-[var(--expense-color)]" /></div>
+   442→   442→   442→                <span className="text-[12px] font-medium text-[#747474] uppercase">Расходы</span>
+   443→   443→   443→              </div>
+   444→   444→   444→              <div className="forn-heading text-[36px] sm:text-[48px] tabular-nums text-[var(--expense-color)]">{fmtCur(stats.totalExpense)}</div>
+   445→   445→   445→            </div>
+   446→   446→   446→          </div>
+   447→   447→   447→
+   448→   448→   448→          {/* Expense ratio bar */}
+   449→   449→   449→          {stats.totalIncome > 0 && (
+   450→   450→   450→            <div className="mt-8 space-y-3">
+   451→   451→   451→              <div className="flex justify-between text-[12px] font-medium uppercase"><span className="text-[#747474]">Расходы от доходов</span><span className="tabular-nums text-black">{stats.expenseRatio.toFixed(0)}%</span></div>
+   452→   452→   452→              <div className="h-[3px] bg-[#DDDDDD] rounded-full overflow-hidden">
+   453→   453→   453→                <div className={`h-full rounded-full transition-all duration-700 ${stats.expenseRatio>90?'bg-[var(--expense-color)]':stats.expenseRatio>70?'bg-[#747474]':'bg-[var(--brand)]'}`} style={{width:`${Math.min(stats.expenseRatio,100)}%`}} />
+   454→   454→   454→              </div>
+   455→   455→   455→            </div>
+   456→   456→   456→          )}
+   457→   457→   457→        </section>
+   458→   458→   458→
+   459→   459→   459→        {/* Divider */}
+   460→   460→   460→        <div className="section-divider mb-16" />
+   461→   461→   461→
+   462→   462→   462→        {/* Quick stats */}
+   463→   463→   463→        {transactions.length > 0 && (
+   464→   464→   464→          <section className="mb-16 animate-fade-in-up" style={{animationDelay:'100ms'}}>
+   465→   465→   465→            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   466→   466→   466→              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Макс. доход" value={fmtCur(stats.maxIncome)} />
+   467→   467→   467→              <StatCard icon={<TrendingDown className="w-4 h-4" />} label="Макс. расход" value={fmtCur(stats.maxExpense)} />
+   468→   468→   468→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний доход" value={fmtCur(stats.avgIncome)} />
+   469→   469→   469→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний расход" value={fmtCur(stats.avgExpense)} />
+   470→   470→   470→            </div>
+   471→   471→   471→          </section>
+   472→   472→   472→        )}
+   473→   473→   473→
+   474→   474→   474→        {/* Daily chart */}
+   475→   475→   475→        {Object.keys(stats.dailyData).length > 1 && (
+   476→   476→   476→          <section className="mb-16 card-surface p-8 animate-fade-in-up" style={{animationDelay:'150ms'}}>
+   477→   477→   477→            <h3 className="text-[12px] font-medium text-[#747474] uppercase mb-6">Активность по дням</h3>
+   478→   478→   478→            <div className="flex items-end gap-[2px] h-24">
+   479→   479→   479→              {chartDays.map(day => { const d = stats.dailyData[day]; if (!d) return <div key={day} className="flex-1 min-w-0" />; const mv = stats.maxDaily||1; return (
+   480→   480→   480→                <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0">
+   481→   481→   481→                  {d.income>0 && <div className="bg-[var(--brand)] w-full rounded-t-sm" style={{height:`${(d.income/mv)*100}%`}} title={`Доход: ${fmtCur(d.income)}`} />}
+   482→   482→   482→                  {d.expense>0 && <div className="bg-black/40 w-full rounded-t-sm" style={{height:`${(d.expense/mv)*100}%`}} title={`Расход: ${fmtCur(d.expense)}`} />}
+   483→   483→   483→                </div>
+   484→   484→   484→              )})}
+   485→   485→   485→            </div>
+   486→   486→   486→            <div className="flex items-center gap-8 mt-5">
+   487→   487→   487→              <div className="flex items-center gap-2"><div className="w-4 h-1 bg-[var(--brand)] rounded-sm" /><span className="text-[12px] text-[#747474] uppercase">Доходы</span></div>
+   488→   488→   488→              <div className="flex items-center gap-2"><div className="w-4 h-1 bg-black/40 rounded-sm" /><span className="text-[12px] text-[#747474] uppercase">Расходы</span></div>
+   489→   489→   489→            </div>
+   490→   490→   490→          </section>
+   491→   491→   491→        )}
+   492→   492→   492→
+   493→   493→   493→        {/* Categories */}
+   494→   494→   494→        {stats.totalExpense > 0 && Object.keys(stats.categoryBreakdown).length > 0 && (
+   495→   495→   495→          <section className="mb-16 card-surface p-8 space-y-6 animate-fade-in-up" style={{animationDelay:'200ms'}}>
+   496→   496→   496→            <h3 className="text-[12px] font-medium text-[#747474] uppercase">Категории расходов</h3>
+   497→   497→   497→            {Object.entries(stats.categoryBreakdown).sort(([,a],[,b])=>b-a).map(([cat,amount]) => { const co = EXPENSE_CATEGORIES.find(c=>c.value===cat); const pct = stats.totalExpense>0?(amount/stats.totalExpense)*100:0; return (
+   498→   498→   498→              <div key={cat} className="space-y-3">
+   499→   499→   499→                <div className="flex items-center justify-between text-[16px]"><span className="flex items-center gap-3"><span className="text-base">{co?.icon}</span><span className="font-medium text-black uppercase">{co?.label||cat}</span></span><span className="font-medium tabular-nums text-black" style={{fontFamily:'"Mod", cursive', fontWeight:500}}>{fmtCur(amount)}</span></div>
+   500→   500→   500→                <div className="h-[2px] bg-[#DDDDDD] rounded-full overflow-hidden"><div className="h-full bg-[var(--brand)]/60 rounded-full transition-all duration-700" style={{width:`${pct}%`}} /></div>
+   501→   501→   501→              </div>
+   502→   502→   502→            )})}
+   503→   503→   503→          </section>
+   504→   504→   504→        )}
+   505→   505→   505→
+   506→   506→   506→        {/* Divider */}
+   507→   507→   507→        <div className="section-divider mb-12" />
+   508→   508→   508→
+   509→   509→   509→        {/* Transactions */}
+   510→   510→   510→        <section className="animate-fade-in-up" style={{animationDelay:'250ms'}}>
+   511→   511→   511→          <div className="flex items-center justify-between mb-6">
+   512→   512→   512→            <div className="flex items-center gap-4">
+   513→   513→   513→              <h2 className="text-[12px] font-medium text-[#747474] uppercase">Транзакции</h2>
+   514→   514→   514→              <span className="text-[12px] text-[#B0B0B0] uppercase">{filteredTransactions.length} {pluralize(filteredTransactions.length)}</span>
+   515→   515→   515→            </div>
+   516→   516→   516→          </div>
+   517→   517→   517→          <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-6">
+   518→   518→   518→            <TabsList className="bg-[#F5F5F5] rounded-full p-1 h-11 border border-[#DDDDDD]">
+   519→   519→   519→              <TabsTrigger value="all" className="flex-1 text-[14px] font-medium uppercase rounded-full data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-[#747474] transition-all">Все</TabsTrigger>
+   520→   520→   520→              <TabsTrigger value="income" className="flex-1 text-[14px] font-medium uppercase rounded-full data-[state=active]:bg-[var(--brand)] data-[state=active]:text-white text-[#747474] transition-all">Доходы</TabsTrigger>
+   521→   521→   521→              <TabsTrigger value="expense" className="flex-1 text-[14px] font-medium uppercase rounded-full data-[state=active]:bg-black data-[state=active]:text-white text-[#747474] transition-all">Расходы</TabsTrigger>
+   522→   522→   522→            </TabsList>
+   523→   523→   523→          </Tabs>
+   524→   524→   524→
+   525→   525→   525→          {isLoading && <div className="space-y-4">{Array.from({length:5}).map((_,i)=>(<div key={i} className="flex items-center gap-4 py-5 px-2 animate-pulse"><div className="w-10 h-10 bg-[#F5F5F5] rounded-full" /><div className="flex-1 space-y-2"><div className="h-4 bg-[#F5F5F5] rounded-md w-3/4" /><div className="h-3 bg-[#F5F5F5] rounded-md w-1/2" /></div><div className="h-4 bg-[#F5F5F5] rounded-md w-20" /></div>))}</div>}
+   526→   526→   526→
+   527→   527→   527→          {!isLoading && filteredTransactions.length === 0 && (
+   528→   528→   528→            <div className="text-center py-24 space-y-5">
+   529→   529→   529→              <div className="w-14 h-14 mx-auto rounded-full bg-[#F5F5F5] flex items-center justify-center"><Wallet className="w-6 h-6 text-[#B0B0B0]" /></div>
+   530→   530→   530→              <p className="text-[16px] font-medium text-[#272727] uppercase">Нет транзакций</p>
+   531→   531→   531→              <p className="text-[14px] text-[#747474] uppercase">Добавьте первую транзакцию</p>
+   532→   532→   532→              <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="forn-button bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] mx-auto"><Plus className="w-4 h-4" /><span>Добавить</span></button>
+   533→   533→   533→            </div>
+   534→   534→   534→          )}
+   535→   535→   535→
+   536→   536→   536→          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
+   537→   537→   537→            <div key={dateKey}>
+   538→   538→   538→              <div className="sticky top-16 z-10 py-3 bg-[#FCFCFC]"><span className="text-[12px] font-medium text-[#747474] uppercase">{fmtFullDate(txs[0].date)}</span></div>
+   539→   539→   539→              <div className="card-surface p-2">{txs.map(t => <TransactionRow key={t.id} t={t} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}</div>
+   540→   540→   540→            </div>
+   541→   541→   541→          ))}
+   542→   542→   542→        </section>
+   543→   543→   543→      </main>
+   544→   544→   544→
+   545→   545→   545→      {/* FAB */}
+   546→   546→   546→      <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="fixed bottom-6 right-6 h-14 w-14 bg-[var(--brand)] text-white flex items-center justify-center hover:bg-[var(--brand-dark)] transition-all sm:hidden z-30 rounded-full pill-press"><Plus className="w-5 h-5" /></button>
+   547→   547→   547→      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 bg-white border border-[#DDDDDD] rounded-full z-30 pill-press transition-colors hover:bg-[#F0F0F0]"><ChevronLeft className="w-4 h-4 rotate-90 text-[#747474]" /></button>}
+   548→   548→   548→
+   549→   549→   549→      {/* Add Dialog */}
+   550→   550→   550→      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+   551→   551→   551→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   552→   552→   552→          <DialogHeader><DialogTitle className="text-[16px] font-medium text-[var(--brand)] uppercase" style={{fontFamily:'"Mod", cursive'}}>Новая транзакция</DialogTitle></DialogHeader>
+   553→   553→   553→          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   554→   554→   554→        </DialogContent>
+   555→   555→   555→      </Dialog>
+   556→   556→   556→
+   557→   557→   557→      {/* Edit Dialog */}
+   558→   558→   558→      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+   559→   559→   559→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   560→   560→   560→          <DialogHeader><DialogTitle className="text-[16px] font-medium text-[var(--brand)] uppercase" style={{fontFamily:'"Mod", cursive'}}>Редактировать</DialogTitle></DialogHeader>
+   561→   561→   561→          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms} feeMap={feeMap} iconMap={iconMap} />
+   562→   562→   562→        </DialogContent>
+   563→   563→   563→      </Dialog>
+   564→   564→   564→
+   565→   565→   565→      {/* Delete Dialog */}
+   566→   566→   566→      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+   567→   567→   567→        <AlertDialogContent className="dark-dialog">
+   568→   568→   568→          <AlertDialogHeader>
+   569→   569→   569→            <div className="flex items-center gap-4 mb-3">
+   570→   570→   570→              <div className="w-10 h-10 rounded-full bg-[var(--expense-bg)] flex items-center justify-center"><Trash2 className="w-4 h-4 text-[var(--expense-color)]" /></div>
+   571→   571→   571→              <AlertDialogTitle className="text-[16px] font-medium text-black uppercase">Удалить?</AlertDialogTitle>
+   572→   572→   572→            </div>
+   573→   573→   573→            <AlertDialogDescription className="text-[14px] text-[#747474] uppercase">Это действие нельзя отменить</AlertDialogDescription>
+   574→   574→   574→          </AlertDialogHeader>
+   575→   575→   575→          <AlertDialogFooter className="gap-3">
+   576→   576→   576→            <AlertDialogCancel className="font-medium rounded-full bg-transparent text-[#747474] hover:text-black hover:bg-[#F5F5F5] text-[14px] uppercase">Отмена</AlertDialogCancel>
+   577→   577→   577→            <AlertDialogAction onClick={handleDelete} className="bg-black text-white hover:bg-[#272727] font-medium rounded-full text-[14px] uppercase">Удалить</AlertDialogAction>
+   578→   578→   578→          </AlertDialogFooter>
+   579→   579→   579→        </AlertDialogContent>
+   580→   580→   580→      </AlertDialog>
+   581→   581→   581→
+   582→   582→   582→      {/* Settings Dialog */}
+   583→   583→   583→      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+   584→   584→   584→        <DialogContent className="dark-dialog sm:max-w-md max-h-[85vh] overflow-y-auto">
+   585→   585→   585→          <DialogHeader><DialogTitle className="text-[16px] font-medium text-[var(--brand)] uppercase" style={{fontFamily:'"Mod", cursive'}}>Настройки площадок</DialogTitle></DialogHeader>
+   586→   586→   586→          <div className="space-y-6">
+   587→   587→   587→            <p className="text-[14px] text-[#747474] uppercase">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
+   588→   588→   588→            <div className="space-y-1">
+   589→   589→   589→              {platforms.map(p => (
+   590→   590→   590→                <div key={p.name} className="flex items-center gap-4 p-4 rounded-[20px] hover:bg-[#F8F8F8] transition-colors border-b border-[#DDDDDD] last:border-0">
+   591→   591→   591→                  {p.icon && <PlatformIcon name={p.name} size={22} iconMap={iconMap} />}
+   592→   592→   592→                  {!p.icon && <div className="w-6 h-6 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[10px] font-bold text-[#747474]">{p.name[0]}</div>}
+   593→   593→   593→                  <span className="text-[14px] font-medium flex-1 truncate text-black uppercase">{p.name}</span>
+   594→   594→   594→                  <div className="flex items-center gap-2">
+   595→   595→   595→                    <Input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="h-8 w-20 text-[14px] rounded-full bg-[#F5F5F5] border-[#DDDDDD] text-center font-medium tabular-nums text-black" />
+   596→   596→   596→                    <span className="text-[10px] text-[#747474] font-medium uppercase">₽/отз</span>
+   597→   597→   597→                  </div>
+   598→   598→   598→                  <button onClick={() => removePlatform(p.name)} className="p-2 rounded-full hover:bg-[var(--expense-bg)] text-[#747474] hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>
+   599→   599→   599→                </div>
+   600→   600→   600→              ))}
+   601→   601→   601→            </div>
+   602→   602→   602→            <div className="border border-dashed border-[#DDDDDD] rounded-[20px] p-5 space-y-4">
+   603→   603→   603→              <div className="flex items-center gap-2"><PlusCircle className="w-4 h-4 text-[#747474]" /><span className="text-[10px] font-medium text-[#747474] uppercase">Добавить площадку</span></div>
+   604→   604→   604→              <div className="flex items-center gap-3">
+   605→   605→   605→                <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder="Название" className="h-10 text-[14px] rounded-full bg-[#F5F5F5] border-[#DDDDDD] flex-1 text-black placeholder:text-[#B0B0B0] uppercase" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   606→   606→   606→                <Input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="h-10 w-20 text-[14px] rounded-full bg-[#F5F5F5] border-[#DDDDDD] text-center text-black" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   607→   607→   607→                <Button onClick={addPlatform} className="h-10 px-4 bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] font-medium rounded-full text-[14px] uppercase pill-press"><Plus className="w-4 h-4" /></Button>
+   608→   608→   608→              </div>
+   609→   609→   609→            </div>
+   610→   610→   610→          </div>
+   611→   611→   611→        </DialogContent>
+   612→   612→   612→      </Dialog>
+   613→   613→   613→    </div>
+   614→   614→   614→  )
+   615→   615→   615→}
+   616→   616→   616→

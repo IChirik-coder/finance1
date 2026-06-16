@@ -1,0 +1,746 @@
+     1→     1→@import "tailwindcss";
+     2→     2→@import "tw-animate-css";
+     3→     3→
+     4→     4→@custom-variant dark (&:is(.dark *));
+     5→     5→
+     6→     6→@theme inline {
+     7→     7→  --color-background: var(--background);
+     8→     8→  --color-foreground: var(--foreground);
+     9→     9→  --color-brand: var(--brand);
+    10→    10→  --color-brand-light: var(--brand-light);
+    11→    11→  --color-brand-dark: var(--brand-dark);
+    12→    12→  --font-sans: var(--font-sans);
+    13→    13→  --font-mono: var(--font-mono);
+    14→    14→  --font-display: var(--font-sans);
+    15→    15→  --color-sidebar-ring: var(--sidebar-ring);
+    16→    16→  --color-sidebar-border: var(--sidebar-border);
+    17→    17→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    18→    18→  --color-sidebar-accent: var(--sidebar-accent);
+    19→    19→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    20→    20→  --color-sidebar-primary: var(--sidebar-primary);
+    21→    21→  --color-sidebar-foreground: var(--sidebar-foreground);
+    22→    22→  --color-sidebar: var(--sidebar);
+    23→    23→  --color-chart-5: var(--chart-5);
+    24→    24→  --color-chart-4: var(--chart-4);
+    25→    25→  --color-chart-3: var(--chart-3);
+    26→    26→  --color-chart-2: var(--chart-2);
+    27→    27→  --color-chart-1: var(--chart-1);
+    28→    28→  --color-ring: var(--ring);
+    29→    29→  --color-input: var(--input);
+    30→    30→  --color-border: var(--border);
+    31→    31→  --color-destructive: var(--destructive);
+    32→    32→  --color-accent-foreground: var(--accent-foreground);
+    33→    33→  --color-accent: var(--accent);
+    34→    34→  --color-muted-foreground: var(--muted-foreground);
+    35→    35→  --color-muted: var(--muted);
+    36→    36→  --color-secondary-foreground: var(--secondary-foreground);
+    37→    37→  --color-secondary: var(--secondary);
+    38→    38→  --color-primary-foreground: var(--primary-foreground);
+    39→    39→  --color-primary: var(--primary);
+    40→    40→  --color-popover-foreground: var(--popover-foreground);
+    41→    41→  --color-popover: var(--popover);
+    42→    42→  --color-card-foreground: var(--card-foreground);
+    43→    43→  --color-card: var(--card);
+    44→    44→  --radius-sm: calc(var(--radius) - 4px);
+    45→    45→  --radius-md: calc(var(--radius) - 2px);
+    46→    46→  --radius-lg: var(--radius);
+    47→    47→  --radius-xl: calc(var(--radius) + 4px);
+    48→    48→}
+    49→    49→
+    50→    50→/* ══════════════════════════════════════════════════════════
+    51→    51→   LIGHT THEME (default)
+    52→    52→   ══════════════════════════════════════════════════════════ */
+    53→    53→
+    54→    54→:root {
+    55→    55→  --radius: 16px;
+    56→    56→
+    57→    57→  --brand: #3b82f6;
+    58→    58→  --brand-light: #60a5fa;
+    59→    59→  --brand-dark: #2563eb;
+    60→    60→
+    61→    61→  --background: #f0f2f7;
+    62→    62→  --foreground: #1a1a2e;
+    63→    63→  --card: rgba(255, 255, 255, 0.7);
+    64→    64→  --card-foreground: #1a1a2e;
+    65→    65→  --popover: rgba(255, 255, 255, 0.92);
+    66→    66→  --popover-foreground: #1a1a2e;
+    67→    67→  --primary: #3b82f6;
+    68→    68→  --primary-foreground: #ffffff;
+    69→    69→  --secondary: rgba(0, 0, 0, 0.04);
+    70→    70→  --secondary-foreground: rgba(26, 26, 46, 0.8);
+    71→    71→  --muted: rgba(0, 0, 0, 0.04);
+    72→    72→  --muted-foreground: rgba(26, 26, 46, 0.45);
+    73→    73→  --accent: rgba(59, 130, 246, 0.08);
+    74→    74→  --accent-foreground: #3b82f6;
+    75→    75→  --destructive: #ef4444;
+    76→    76→  --border: rgba(0, 0, 0, 0.08);
+    77→    77→  --input: rgba(0, 0, 0, 0.08);
+    78→    78→  --ring: rgba(59, 130, 246, 0.3);
+    79→    79→  --chart-1: #3b82f6;
+    80→    80→  --chart-2: #60a5fa;
+    81→    81→  --chart-3: rgba(26, 26, 46, 0.35);
+    82→    82→  --chart-4: #ef4444;
+    83→    83→  --chart-5: #10b981;
+    84→    84→  --sidebar: rgba(240, 242, 247, 0.95);
+    85→    85→  --sidebar-foreground: #1a1a2e;
+    86→    86→  --sidebar-primary: #3b82f6;
+    87→    87→  --sidebar-primary-foreground: #ffffff;
+    88→    88→  --sidebar-accent: rgba(59, 130, 246, 0.08);
+    89→    89→  --sidebar-accent-foreground: #3b82f6;
+    90→    90→  --sidebar-border: rgba(0, 0, 0, 0.08);
+    91→    91→  --sidebar-ring: rgba(59, 130, 246, 0.3);
+    92→    92→
+    93→    93→  --income-color: #059669;
+    94→    94→  --income-bg: rgba(16, 185, 129, 0.12);
+    95→    95→  --expense-color: #dc2626;
+    96→    96→  --expense-bg: rgba(239, 68, 68, 0.1);
+    97→    97→
+    98→    98→  --glass-blur: 24px;
+    99→    99→}
+   100→   100→
+   101→   101→/* ══════════════════════════════════════════════════════════
+   102→   102→   DARK THEME
+   103→   103→   ══════════════════════════════════════════════════════════ */
+   104→   104→
+   105→   105→.dark {
+   106→   106→  --background: #0a0a12;
+   107→   107→  --foreground: #ffffff;
+   108→   108→  --card: rgba(255, 255, 255, 0.05);
+   109→   109→  --card-foreground: #ffffff;
+   110→   110→  --popover: rgba(15, 15, 25, 0.92);
+   111→   111→  --popover-foreground: #ffffff;
+   112→   112→  --primary: #3b82f6;
+   113→   113→  --primary-foreground: #ffffff;
+   114→   114→  --secondary: rgba(255, 255, 255, 0.06);
+   115→   115→  --secondary-foreground: rgba(255, 255, 255, 0.9);
+   116→   116→  --muted: rgba(255, 255, 255, 0.04);
+   117→   117→  --muted-foreground: rgba(255, 255, 255, 0.45);
+   118→   118→  --accent: rgba(59, 130, 246, 0.12);
+   119→   119→  --accent-foreground: #3b82f6;
+   120→   120→  --destructive: #ff5757;
+   121→   121→  --border: rgba(255, 255, 255, 0.08);
+   122→   122→  --input: rgba(255, 255, 255, 0.08);
+   123→   123→  --ring: rgba(59, 130, 246, 0.4);
+   124→   124→  --chart-1: #3b82f6;
+   125→   125→  --chart-2: #60a5fa;
+   126→   126→  --chart-3: rgba(255, 255, 255, 0.35);
+   127→   127→  --chart-4: #ff5757;
+   128→   128→  --chart-5: #10b981;
+   129→   129→  --sidebar: rgba(10, 10, 18, 0.95);
+   130→   130→  --sidebar-foreground: #ffffff;
+   131→   131→  --sidebar-primary: #3b82f6;
+   132→   132→  --sidebar-primary-foreground: #ffffff;
+   133→   133→  --sidebar-accent: rgba(59, 130, 246, 0.12);
+   134→   134→  --sidebar-accent-foreground: #3b82f6;
+   135→   135→  --sidebar-border: rgba(255, 255, 255, 0.08);
+   136→   136→  --sidebar-ring: rgba(59, 130, 246, 0.4);
+   137→   137→
+   138→   138→  --income-color: #10b981;
+   139→   139→  --income-bg: rgba(16, 185, 129, 0.12);
+   140→   140→  --expense-color: #ff5757;
+   141→   141→  --expense-bg: rgba(255, 87, 87, 0.12);
+   142→   142→}
+   143→   143→
+   144→   144→@layer base {
+   145→   145→  * {
+   146→   146→    @apply border-border outline-ring/50;
+   147→   147→  }
+   148→   148→
+   149→   149→  body {
+   150→   150→    @apply bg-background text-foreground;
+   151→   151→    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+   152→   152→    -webkit-font-smoothing: antialiased;
+   153→   153→    -moz-osx-font-smoothing: grayscale;
+   154→   154→    transition: background-color 0.4s ease, color 0.4s ease;
+   155→   155→  }
+   156→   156→}
+   157→   157→
+   158→   158→/* ══════════════════════════════════════════════════════════
+   159→   159→   LIQUID GLASS — LIGHT THEME
+   160→   160→   ══════════════════════════════════════════════════════════ */
+   161→   161→
+   162→   162→.liquid-glass {
+   163→   163→  position: relative;
+   164→   164→  background: linear-gradient(
+   165→   165→    135deg,
+   166→   166→    rgba(255, 255, 255, 0.75) 0%,
+   167→   167→    rgba(255, 255, 255, 0.5) 40%,
+   168→   168→    rgba(255, 255, 255, 0.6) 60%,
+   169→   169→    rgba(255, 255, 255, 0.45) 100%
+   170→   170→  );
+   171→   171→  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   172→   172→  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   173→   173→  border: 1px solid rgba(255, 255, 255, 0.6);
+   174→   174→  border-radius: 20px;
+   175→   175→  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+   176→   176→  overflow: hidden;
+   177→   177→  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   178→   178→}
+   179→   179→
+   180→   180→.liquid-glass::before {
+   181→   181→  content: '';
+   182→   182→  position: absolute;
+   183→   183→  top: 0; left: 0; right: 0;
+   184→   184→  height: 50%;
+   185→   185→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 40%, transparent 100%);
+   186→   186→  border-radius: 20px 20px 0 0;
+   187→   187→  pointer-events: none;
+   188→   188→  z-index: 1;
+   189→   189→}
+   190→   190→
+   191→   191→.liquid-glass::after {
+   192→   192→  content: '';
+   193→   193→  position: absolute;
+   194→   194→  bottom: 0; left: 10%; right: 10%;
+   195→   195→  height: 1px;
+   196→   196→  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent);
+   197→   197→  pointer-events: none;
+   198→   198→  z-index: 1;
+   199→   199→}
+   200→   200→
+   201→   201→.liquid-glass:hover {
+   202→   202→  border-color: rgba(255, 255, 255, 0.8);
+   203→   203→  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+   204→   204→  transform: translateY(-1px);
+   205→   205→}
+   206→   206→
+   207→   207→/* ─── Liquid Glass — Small (light) ─── */
+   208→   208→
+   209→   209→.liquid-glass-sm {
+   210→   210→  position: relative;
+   211→   211→  background: linear-gradient(
+   212→   212→    135deg,
+   213→   213→    rgba(255, 255, 255, 0.8) 0%,
+   214→   214→    rgba(255, 255, 255, 0.55) 50%,
+   215→   215→    rgba(255, 255, 255, 0.5) 100%
+   216→   216→  );
+   217→   217→  backdrop-filter: blur(16px) saturate(180%);
+   218→   218→  -webkit-backdrop-filter: blur(16px) saturate(180%);
+   219→   219→  border: 1px solid rgba(255, 255, 255, 0.7);
+   220→   220→  border-radius: 14px;
+   221→   221→  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+   222→   222→  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+   223→   223→}
+   224→   224→
+   225→   225→.liquid-glass-sm::before {
+   226→   226→  content: '';
+   227→   227→  position: absolute;
+   228→   228→  top: 0; left: 0; right: 0;
+   229→   229→  height: 50%;
+   230→   230→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 100%);
+   231→   231→  border-radius: 14px 14px 0 0;
+   232→   232→  pointer-events: none;
+   233→   233→}
+   234→   234→
+   235→   235→.liquid-glass-sm:hover {
+   236→   236→  border-color: rgba(255, 255, 255, 0.85);
+   237→   237→  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+   238→   238→  transform: translateY(-1px);
+   239→   239→}
+   240→   240→
+   241→   241→.liquid-glass-sm:active {
+   242→   242→  transform: scale(0.97);
+   243→   243→  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+   244→   244→}
+   245→   245→
+   246→   246→/* ─── Liquid Glass — Button (light) ─── */
+   247→   247→
+   248→   248→.liquid-glass-btn {
+   249→   249→  position: relative;
+   250→   250→  background: linear-gradient(
+   251→   251→    135deg,
+   252→   252→    rgba(59, 130, 246, 0.2) 0%,
+   253→   253→    rgba(59, 130, 246, 0.1) 50%,
+   254→   254→    rgba(96, 165, 250, 0.15) 100%
+   255→   255→  );
+   256→   256→  backdrop-filter: blur(16px) saturate(180%);
+   257→   257→  -webkit-backdrop-filter: blur(16px) saturate(180%);
+   258→   258→  border: 1px solid rgba(59, 130, 246, 0.25);
+   259→   259→  border-radius: 14px;
+   260→   260→  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(59, 130, 246, 0.2), inset 0 -1px 0 rgba(59, 130, 246, 0.08);
+   261→   261→  color: #2563eb;
+   262→   262→  font-weight: 600;
+   263→   263→  cursor: pointer;
+   264→   264→  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+   265→   265→  display: inline-flex;
+   266→   266→  align-items: center;
+   267→   267→  gap: 8px;
+   268→   268→  padding: 10px 20px;
+   269→   269→  font-size: 14px;
+   270→   270→}
+   271→   271→
+   272→   272→.liquid-glass-btn::before {
+   273→   273→  content: '';
+   274→   274→  position: absolute;
+   275→   275→  top: 0; left: 0; right: 0;
+   276→   276→  height: 50%;
+   277→   277→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+   278→   278→  border-radius: 14px 14px 0 0;
+   279→   279→  pointer-events: none;
+   280→   280→}
+   281→   281→
+   282→   282→.liquid-glass-btn:hover {
+   283→   283→  border-color: rgba(59, 130, 246, 0.4);
+   284→   284→  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12), inset 0 1px 0 rgba(59, 130, 246, 0.25);
+   285→   285→  transform: translateY(-1px);
+   286→   286→}
+   287→   287→
+   288→   288→.liquid-glass-btn:active {
+   289→   289→  transform: scale(0.97);
+   290→   290→}
+   291→   291→
+   292→   292→/* ─── Liquid Glass — Hero Card / Balance (light) ─── */
+   293→   293→
+   294→   294→.liquid-glass-hero {
+   295→   295→  position: relative;
+   296→   296→  background: linear-gradient(
+   297→   297→    135deg,
+   298→   298→    rgba(59, 130, 246, 0.15) 0%,
+   299→   299→    rgba(139, 92, 246, 0.1) 40%,
+   300→   300→    rgba(59, 130, 246, 0.08) 60%,
+   301→   301→    rgba(139, 92, 246, 0.06) 100%
+   302→   302→  );
+   303→   303→  backdrop-filter: blur(30px) saturate(200%);
+   304→   304→  -webkit-backdrop-filter: blur(30px) saturate(200%);
+   305→   305→  border: 1px solid rgba(59, 130, 246, 0.15);
+   306→   306→  border-radius: 24px;
+   307→   307→  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.06), 0 0 80px rgba(59, 130, 246, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+   308→   308→  overflow: hidden;
+   309→   309→  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+   310→   310→}
+   311→   311→
+   312→   312→.liquid-glass-hero::before {
+   313→   313→  content: '';
+   314→   314→  position: absolute;
+   315→   315→  top: 0; left: 0; right: 0;
+   316→   316→  height: 55%;
+   317→   317→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0.05) 60%, transparent 100%);
+   318→   318→  border-radius: 24px 24px 0 0;
+   319→   319→  pointer-events: none;
+   320→   320→  z-index: 1;
+   321→   321→}
+   322→   322→
+   323→   323→.liquid-glass-hero::after {
+   324→   324→  content: '';
+   325→   325→  position: absolute;
+   326→   326→  bottom: 0; left: 5%; right: 5%;
+   327→   327→  height: 1px;
+   328→   328→  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.2), transparent);
+   329→   329→  pointer-events: none;
+   330→   330→  z-index: 1;
+   331→   331→}
+   332→   332→
+   333→   333→/* ─── Liquid Glass — Colored variants (light) ─── */
+   334→   334→
+   335→   335→.liquid-glass-blue {
+   336→   336→  position: relative;
+   337→   337→  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.04) 40%, rgba(96, 165, 250, 0.06) 60%, rgba(59, 130, 246, 0.02) 100%);
+   338→   338→  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   339→   339→  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   340→   340→  border: 1px solid rgba(59, 130, 246, 0.18);
+   341→   341→  border-radius: 20px;
+   342→   342→  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.05), inset 0 1px 0 rgba(59, 130, 246, 0.15), inset 0 -1px 0 rgba(59, 130, 246, 0.05);
+   343→   343→  overflow: hidden;
+   344→   344→  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   345→   345→}
+   346→   346→
+   347→   347→.liquid-glass-blue::before {
+   348→   348→  content: '';
+   349→   349→  position: absolute;
+   350→   350→  top: 0; left: 0; right: 0;
+   351→   351→  height: 50%;
+   352→   352→  background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.02) 50%, transparent 100%);
+   353→   353→  border-radius: 20px 20px 0 0;
+   354→   354→  pointer-events: none;
+   355→   355→  z-index: 1;
+   356→   356→}
+   357→   357→
+   358→   358→.liquid-glass-blue::after {
+   359→   359→  content: '';
+   360→   360→  position: absolute;
+   361→   361→  bottom: 0; left: 10%; right: 10%;
+   362→   362→  height: 1px;
+   363→   363→  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+   364→   364→  pointer-events: none;
+   365→   365→  z-index: 1;
+   366→   366→}
+   367→   367→
+   368→   368→.liquid-glass-green {
+   369→   369→  position: relative;
+   370→   370→  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.03) 40%, rgba(52, 211, 153, 0.05) 60%, rgba(16, 185, 129, 0.01) 100%);
+   371→   371→  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   372→   372→  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   373→   373→  border: 1px solid rgba(16, 185, 129, 0.18);
+   374→   374→  border-radius: 20px;
+   375→   375→  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.05), inset 0 1px 0 rgba(16, 185, 129, 0.15), inset 0 -1px 0 rgba(16, 185, 129, 0.05);
+   376→   376→  overflow: hidden;
+   377→   377→  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   378→   378→}
+   379→   379→
+   380→   380→.liquid-glass-green::before {
+   381→   381→  content: '';
+   382→   382→  position: absolute;
+   383→   383→  top: 0; left: 0; right: 0;
+   384→   384→  height: 50%;
+   385→   385→  background: linear-gradient(180deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 50%, transparent 100%);
+   386→   386→  border-radius: 20px 20px 0 0;
+   387→   387→  pointer-events: none;
+   388→   388→  z-index: 1;
+   389→   389→}
+   390→   390→
+   391→   391→.liquid-glass-green::after {
+   392→   392→  content: '';
+   393→   393→  position: absolute;
+   394→   394→  bottom: 0; left: 10%; right: 10%;
+   395→   395→  height: 1px;
+   396→   396→  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.2), transparent);
+   397→   397→  pointer-events: none;
+   398→   398→  z-index: 1;
+   399→   399→}
+   400→   400→
+   401→   401→.liquid-glass-red {
+   402→   402→  position: relative;
+   403→   403→  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.03) 40%, rgba(255, 138, 138, 0.05) 60%, rgba(239, 68, 68, 0.01) 100%);
+   404→   404→  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   405→   405→  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+   406→   406→  border: 1px solid rgba(239, 68, 68, 0.18);
+   407→   407→  border-radius: 20px;
+   408→   408→  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.05), inset 0 1px 0 rgba(239, 68, 68, 0.15), inset 0 -1px 0 rgba(239, 68, 68, 0.05);
+   409→   409→  overflow: hidden;
+   410→   410→  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   411→   411→}
+   412→   412→
+   413→   413→.liquid-glass-red::before {
+   414→   414→  content: '';
+   415→   415→  position: absolute;
+   416→   416→  top: 0; left: 0; right: 0;
+   417→   417→  height: 50%;
+   418→   418→  background: linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.02) 50%, transparent 100%);
+   419→   419→  border-radius: 20px 20px 0 0;
+   420→   420→  pointer-events: none;
+   421→   421→  z-index: 1;
+   422→   422→}
+   423→   423→
+   424→   424→.liquid-glass-red::after {
+   425→   425→  content: '';
+   426→   426→  position: absolute;
+   427→   427→  bottom: 0; left: 10%; right: 10%;
+   428→   428→  height: 1px;
+   429→   429→  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.2), transparent);
+   430→   430→  pointer-events: none;
+   431→   431→  z-index: 1;
+   432→   432→}
+   433→   433→
+   434→   434→/* ─── Liquid Glass — Input (light) ─── */
+   435→   435→
+   436→   436→.liquid-glass-input {
+   437→   437→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%) !important;
+   438→   438→  backdrop-filter: blur(16px) !important;
+   439→   439→  -webkit-backdrop-filter: blur(16px) !important;
+   440→   440→  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+   441→   441→  border-radius: 14px !important;
+   442→   442→  color: #1a1a2e !important;
+   443→   443→  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(0, 0, 0, 0.03) !important;
+   444→   444→  transition: all 0.3s ease !important;
+   445→   445→}
+   446→   446→
+   447→   447→.liquid-glass-input::placeholder {
+   448→   448→  color: rgba(26, 26, 46, 0.3) !important;
+   449→   449→}
+   450→   450→
+   451→   451→.liquid-glass-input:focus {
+   452→   452→  border-color: rgba(59, 130, 246, 0.35) !important;
+   453→   453→  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+   454→   454→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%) !important;
+   455→   455→}
+   456→   456→
+   457→   457→/* ─── Liquid Glass — Dialog (light) ─── */
+   458→   458→
+   459→   459→.liquid-glass-dialog {
+   460→   460→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 247, 252, 0.96) 100%) !important;
+   461→   461→  backdrop-filter: blur(40px) saturate(180%) !important;
+   462→   462→  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+   463→   463→  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+   464→   464→  border-radius: 24px !important;
+   465→   465→  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.03) !important;
+   466→   466→  overflow: hidden !important;
+   467→   467→}
+   468→   468→
+   469→   469→/* ─── Navigation Bar (light) ─── */
+   470→   470→
+   471→   471→.nav-bar {
+   472→   472→  background: linear-gradient(180deg, rgba(240, 242, 247, 0.85) 0%, rgba(240, 242, 247, 0.7) 100%);
+   473→   473→  backdrop-filter: blur(24px) saturate(180%);
+   474→   474→  -webkit-backdrop-filter: blur(24px) saturate(180%);
+   475→   475→  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+   476→   476→  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.6);
+   477→   477→}
+   478→   478→
+   479→   479→/* ─── Transaction Row (light) ─── */
+   480→   480→
+   481→   481→.transaction-row {
+   482→   482→  display: flex;
+   483→   483→  align-items: center;
+   484→   484→  gap: 14px;
+   485→   485→  padding: 14px 2px;
+   486→   486→  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+   487→   487→  transition: background 0.2s ease;
+   488→   488→}
+   489→   489→
+   490→   490→.transaction-row:last-child {
+   491→   491→  border-bottom: none;
+   492→   492→}
+   493→   493→
+   494→   494→.transaction-row:hover {
+   495→   495→  background: rgba(0, 0, 0, 0.02);
+   496→   496→  border-radius: 12px;
+   497→   497→}
+   498→   498→
+   499→   499→/* ─── Scrollbar (light) ─── */
+   500→   500→
+   501→   501→::-webkit-scrollbar { width: 4px; }
+   502→   502→::-webkit-scrollbar-track { background: transparent; }
+   503→   503→::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+   504→   504→::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.18); }
+   505→   505→
+   506→   506→/* ─── Section Divider (light) ─── */
+   507→   507→
+   508→   508→.section-divider {
+   509→   509→  height: 1px;
+   510→   510→  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent);
+   511→   511→}
+   512→   512→
+   513→   513→/* ─── Background Ambient (light) ─── */
+   514→   514→
+   515→   515→.bg-ambient {
+   516→   516→  position: fixed;
+   517→   517→  inset: 0;
+   518→   518→  z-index: 0;
+   519→   519→  pointer-events: none;
+   520→   520→  overflow: hidden;
+   521→   521→}
+   522→   522→
+   523→   523→.bg-ambient::before {
+   524→   524→  content: '';
+   525→   525→  position: absolute;
+   526→   526→  top: -30%; left: -20%;
+   527→   527→  width: 500px; height: 500px;
+   528→   528→  background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+   529→   529→  border-radius: 50%;
+   530→   530→  animation: ambientFloat1 30s ease-in-out infinite;
+   531→   531→}
+   532→   532→
+   533→   533→.bg-ambient::after {
+   534→   534→  content: '';
+   535→   535→  position: absolute;
+   536→   536→  bottom: -30%; right: -15%;
+   537→   537→  width: 450px; height: 450px;
+   538→   538→  background: radial-gradient(circle, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+   539→   539→  border-radius: 50%;
+   540→   540→  animation: ambientFloat2 35s ease-in-out infinite;
+   541→   541→}
+   542→   542→
+   543→   543→@keyframes ambientFloat1 {
+   544→   544→  0%, 100% { transform: translate(0, 0) scale(1); }
+   545→   545→  33% { transform: translate(60px, 40px) scale(1.1); }
+   546→   546→  66% { transform: translate(-30px, 80px) scale(0.95); }
+   547→   547→}
+   548→   548→
+   549→   549→@keyframes ambientFloat2 {
+   550→   550→  0%, 100% { transform: translate(0, 0) scale(1); }
+   551→   551→  33% { transform: translate(-40px, -30px) scale(1.05); }
+   552→   552→  66% { transform: translate(50px, -60px) scale(0.9); }
+   553→   553→}
+   554→   554→
+   555→   555→/* ─── Safe Area ─── */
+   556→   556→
+   557→   557→@supports (padding: env(safe-area-inset-bottom)) {
+   558→   558→  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+   559→   559→}
+   560→   560→
+   561→   561→/* ─── Animations ─── */
+   562→   562→
+   563→   563→@keyframes fadeInUp {
+   564→   564→  from { opacity: 0; transform: translateY(16px); }
+   565→   565→  to { opacity: 1; transform: translateY(0); }
+   566→   566→}
+   567→   567→
+   568→   568→@keyframes fadeIn {
+   569→   569→  from { opacity: 0; }
+   570→   570→  to { opacity: 1; }
+   571→   571→}
+   572→   572→
+   573→   573→.animate-fade-in-up {
+   574→   574→  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+   575→   575→}
+   576→   576→
+   577→   577→.animate-fade-in {
+   578→   578→  animation: fadeIn 0.25s ease both;
+   579→   579→}
+   580→   580→
+   581→   581→/* ══════════════════════════════════════════════════════════
+   582→   582→   DARK THEME OVERRIDES
+   583→   583→   ══════════════════════════════════════════════════════════ */
+   584→   584→
+   585→   585→.dark .liquid-glass {
+   586→   586→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0.08) 60%, rgba(255, 255, 255, 0.03) 100%);
+   587→   587→  border: 1px solid rgba(255, 255, 255, 0.18);
+   588→   588→  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+   589→   589→}
+   590→   590→
+   591→   591→.dark .liquid-glass::before {
+   592→   592→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 40%, transparent 100%);
+   593→   593→}
+   594→   594→
+   595→   595→.dark .liquid-glass::after {
+   596→   596→  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+   597→   597→}
+   598→   598→
+   599→   599→.dark .liquid-glass:hover {
+   600→   600→  border-color: rgba(255, 255, 255, 0.28);
+   601→   601→  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+   602→   602→}
+   603→   603→
+   604→   604→.dark .liquid-glass-sm {
+   605→   605→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.04) 100%);
+   606→   606→  border: 1px solid rgba(255, 255, 255, 0.2);
+   607→   607→  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+   608→   608→}
+   609→   609→
+   610→   610→.dark .liquid-glass-sm::before {
+   611→   611→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
+   612→   612→}
+   613→   613→
+   614→   614→.dark .liquid-glass-sm:hover {
+   615→   615→  border-color: rgba(255, 255, 255, 0.3);
+   616→   616→  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+   617→   617→}
+   618→   618→
+   619→   619→.dark .liquid-glass-sm:active {
+   620→   620→  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+   621→   621→}
+   622→   622→
+   623→   623→.dark .liquid-glass-btn {
+   624→   624→  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(59, 130, 246, 0.12) 50%, rgba(96, 165, 250, 0.15) 100%);
+   625→   625→  border: 1px solid rgba(59, 130, 246, 0.35);
+   626→   626→  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15), inset 0 1px 0 rgba(59, 130, 246, 0.3), inset 0 -1px 0 rgba(59, 130, 246, 0.1);
+   627→   627→  color: white;
+   628→   628→}
+   629→   629→
+   630→   630→.dark .liquid-glass-btn::before {
+   631→   631→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
+   632→   632→}
+   633→   633→
+   634→   634→.dark .liquid-glass-btn:hover {
+   635→   635→  border-color: rgba(59, 130, 246, 0.5);
+   636→   636→  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2), inset 0 1px 0 rgba(59, 130, 246, 0.35);
+   637→   637→}
+   638→   638→
+   639→   639→.dark .liquid-glass-hero {
+   640→   640→  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(139, 92, 246, 0.15) 40%, rgba(59, 130, 246, 0.1) 60%, rgba(139, 92, 246, 0.08) 100%);
+   641→   641→  border: 1px solid rgba(59, 130, 246, 0.25);
+   642→   642→  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3), 0 0 80px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+   643→   643→}
+   644→   644→
+   645→   645→.dark .liquid-glass-hero::before {
+   646→   646→  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 30%, rgba(255, 255, 255, 0.02) 60%, transparent 100%);
+   647→   647→}
+   648→   648→
+   649→   649→.dark .liquid-glass-hero::after {
+   650→   650→  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.4), transparent);
+   651→   651→}
+   652→   652→
+   653→   653→.dark .liquid-glass-blue {
+   654→   654→  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.06) 40%, rgba(96, 165, 250, 0.1) 60%, rgba(59, 130, 246, 0.03) 100%);
+   655→   655→  border: 1px solid rgba(59, 130, 246, 0.3);
+   656→   656→  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.1), inset 0 1px 0 rgba(59, 130, 246, 0.25), inset 0 -1px 0 rgba(59, 130, 246, 0.1);
+   657→   657→}
+   658→   658→
+   659→   659→.dark .liquid-glass-blue::before {
+   660→   660→  background: linear-gradient(180deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 100%);
+   661→   661→}
+   662→   662→
+   663→   663→.dark .liquid-glass-blue::after {
+   664→   664→  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+   665→   665→}
+   666→   666→
+   667→   667→.dark .liquid-glass-green {
+   668→   668→  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.05) 40%, rgba(52, 211, 153, 0.08) 60%, rgba(16, 185, 129, 0.02) 100%);
+   669→   669→  border: 1px solid rgba(16, 185, 129, 0.25);
+   670→   670→  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.08), inset 0 1px 0 rgba(16, 185, 129, 0.25), inset 0 -1px 0 rgba(16, 185, 129, 0.08);
+   671→   671→}
+   672→   672→
+   673→   673→.dark .liquid-glass-green::before {
+   674→   674→  background: linear-gradient(180deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.04) 50%, transparent 100%);
+   675→   675→}
+   676→   676→
+   677→   677→.dark .liquid-glass-green::after {
+   678→   678→  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.35), transparent);
+   679→   679→}
+   680→   680→
+   681→   681→.dark .liquid-glass-red {
+   682→   682→  background: linear-gradient(135deg, rgba(255, 87, 87, 0.18) 0%, rgba(255, 87, 87, 0.05) 40%, rgba(255, 138, 138, 0.08) 60%, rgba(255, 87, 87, 0.02) 100%);
+   683→   683→  border: 1px solid rgba(255, 87, 87, 0.25);
+   684→   684→  box-shadow: 0 8px 32px rgba(255, 87, 87, 0.08), inset 0 1px 0 rgba(255, 87, 87, 0.25), inset 0 -1px 0 rgba(255, 87, 87, 0.08);
+   685→   685→}
+   686→   686→
+   687→   687→.dark .liquid-glass-red::before {
+   688→   688→  background: linear-gradient(180deg, rgba(255, 87, 87, 0.18) 0%, rgba(255, 87, 87, 0.04) 50%, transparent 100%);
+   689→   689→}
+   690→   690→
+   691→   691→.dark .liquid-glass-red::after {
+   692→   692→  background: linear-gradient(90deg, transparent, rgba(255, 87, 87, 0.35), transparent);
+   693→   693→}
+   694→   694→
+   695→   695→.dark .liquid-glass-input {
+   696→   696→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
+   697→   697→  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+   698→   698→  color: white !important;
+   699→   699→  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(255, 255, 255, 0.03) !important;
+   700→   700→}
+   701→   701→
+   702→   702→.dark .liquid-glass-input::placeholder {
+   703→   703→  color: rgba(255, 255, 255, 0.25) !important;
+   704→   704→}
+   705→   705→
+   706→   706→.dark .liquid-glass-input:focus {
+   707→   707→  border-color: rgba(59, 130, 246, 0.4) !important;
+   708→   708→  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+   709→   709→  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%) !important;
+   710→   710→}
+   711→   711→
+   712→   712→.dark .liquid-glass-dialog {
+   713→   713→  background: linear-gradient(135deg, rgba(20, 20, 35, 0.95) 0%, rgba(15, 15, 28, 0.98) 100%) !important;
+   714→   714→  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+   715→   715→  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+   716→   716→}
+   717→   717→
+   718→   718→.dark .nav-bar {
+   719→   719→  background: linear-gradient(180deg, rgba(10, 10, 18, 0.85) 0%, rgba(10, 10, 18, 0.7) 100%);
+   720→   720→  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+   721→   721→  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+   722→   722→}
+   723→   723→
+   724→   724→.dark .transaction-row {
+   725→   725→  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+   726→   726→}
+   727→   727→
+   728→   728→.dark .transaction-row:hover {
+   729→   729→  background: rgba(255, 255, 255, 0.02);
+   730→   730→}
+   731→   731→
+   732→   732→.dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); }
+   733→   733→.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+   734→   734→
+   735→   735→.dark .section-divider {
+   736→   736→  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+   737→   737→}
+   738→   738→
+   739→   739→.dark .bg-ambient::before {
+   740→   740→  background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+   741→   741→}
+   742→   742→
+   743→   743→.dark .bg-ambient::after {
+   744→   744→  background: radial-gradient(circle, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+   745→   745→}
+   746→   746→

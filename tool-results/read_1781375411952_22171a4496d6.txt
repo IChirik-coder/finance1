@@ -1,0 +1,1197 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+     4→     4→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+     5→     5→import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Button } from '@/components/ui/button'
+     8→     8→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     9→     9→import { Separator } from '@/components/ui/separator'
+    10→    10→import {
+    11→    11→  Plus, Search, X, ArrowUpRight, ArrowDownRight, Eye, EyeOff,
+    12→    12→  ChevronLeft, ChevronRight, Pencil, Trash2, Loader2, Wallet,
+    13→    13→  TrendingUp, TrendingDown, BarChart3, ArrowUp,
+    14→    14→} from 'lucide-react'
+    15→    15→import { toast } from 'sonner'
+    16→    16→import { format, isToday, isYesterday, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns'
+    17→    17→import { ru } from 'date-fns/locale'
+    18→    18→
+    19→    19→// ──────────────────────────── Types ────────────────────────────
+    20→    20→
+    21→    21→interface PlatformEntry { name: string; reviewCount: number }
+    22→    22→
+    23→    23→interface Transaction {
+    24→    24→  id: string
+    25→    25→  type: 'income' | 'expense'
+    26→    26→  amount: number
+    27→    27→  description: string
+    28→    28→  date: string
+    29→    29→  taxRate?: number | null
+    30→    30→  platforms?: PlatformEntry[] | null
+    31→    31→  category?: string | null
+    32→    32→}
+    33→    33→
+    34→    34→// ──────────────────────────── Constants ────────────────────────────
+    35→    35→
+    36→    36→const PLATFORMS = [
+    37→    37→  { name: 'Яндекс карты', fee: 50, icon: '/icons/yandex-maps.png' },
+    38→    38→  { name: '2ГИС', fee: 25, icon: '/icons/2gis.png' },
+    39→    39→  { name: 'Google карты', fee: 25, icon: '/icons/google-maps.png' },
+    40→    40→  { name: 'Zoon', fee: 50, icon: '/icons/zoon.png' },
+    41→    41→  { name: 'Яндекс Браузер', fee: 50, icon: '/icons/yandex-browser.png' },
+    42→    42→  { name: 'Яндекс Услуги', fee: 50, icon: '/icons/yandex-uslugi.png' },
+    43→    43→  { name: 'Flamp', fee: 25, icon: '/icons/flamp.png' },
+    44→    44→  { name: 'Yell', fee: 25, icon: '/icons/yell.png' },
+    45→    45→  { name: 'ВК', fee: 25, icon: '/icons/vk.png' },
+    46→    46→  { name: 'ЦИАН', fee: 25, icon: '/icons/cian.png' },
+    47→    47→  { name: 'Tripadvisor', fee: 25, icon: '/icons/tripadvisor.png' },
+    48→    48→  { name: 'Restaurantguru', fee: 25, icon: '/icons/restaurantguru.png' },
+    49→    49→  { name: 'Отзовик', fee: 100, icon: '/icons/otzovik.png' },
+    50→    50→] as const
+    51→    51→
+    52→    52→const PLATFORM_FEE_MAP: Record<string, number> = {}
+    53→    53→const PLATFORM_ICON_MAP: Record<string, string> = {}
+    54→    54→for (const p of PLATFORMS) { PLATFORM_FEE_MAP[p.name] = p.fee; PLATFORM_ICON_MAP[p.name] = p.icon }
+    55→    55→
+    56→    56→const EXPENSE_CATEGORIES = [
+    57→    57→  { value: 'subscriptions', label: 'Подписки', icon: '📺' },
+    58→    58→  { value: 'transport', label: 'Транспорт', icon: '🚗' },
+    59→    59→  { value: 'food', label: 'Еда', icon: '🍕' },
+    60→    60→  { value: 'office', label: 'Офис', icon: '💻' },
+    61→    61→  { value: 'marketing', label: 'Маркетинг', icon: '📢' },
+    62→    62→  { value: 'taxes', label: 'Налоги', icon: '📋' },
+    63→    63→  { value: 'education', label: 'Обучение', icon: '📚' },
+    64→    64→  { value: 'other', label: 'Другое', icon: '📦' },
+    65→    65→] as const
+    66→    66→
+    67→    67→const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    68→    68→const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+    69→    69→
+    70→    70→const _currencyFmt = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 })
+    71→    71→
+    72→    72→// ──────────────────────────── Helpers ────────────────────────────
+    73→    73→
+    74→    74→function formatCurrency(n: number): string {
+    75→    75→  const abs = Math.abs(n)
+    76→    76→  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')} млн ₽`
+    77→    77→  if (abs >= 100_000) return `${(n / 1_000).toFixed(0)} тыс ₽`
+    78→    78→  return _currencyFmt.format(n)
+    79→    79→}
+    80→    80→
+    81→    81→function formatFullCurrency(n: number): string {
+    82→    82→  return _currencyFmt.format(n)
+    83→    83→}
+    84→    84→
+    85→    85→function formatDate(d: string): string {
+    86→    86→  const date = new Date(d)
+    87→    87→  return `${date.getDate()} ${MONTHS_GEN[date.getMonth()]}`
+    88→    88→}
+    89→    89→
+    90→    90→function formatFullDate(d: string): string {
+    91→    91→  const date = new Date(d)
+    92→    92→  if (isToday(date)) return 'Сегодня'
+    93→    93→  if (isYesterday(date)) return 'Вчера'
+    94→    94→  return formatDate(d)
+    95→    95→}
+    96→    96→
+    97→    97→function parsePlatforms(p: string | PlatformEntry[] | null | undefined): PlatformEntry[] {
+    98→    98→  if (!p) return []
+    99→    99→  if (Array.isArray(p)) return p
+   100→   100→  try { return JSON.parse(p) } catch { return [] }
+   101→   101→}
+   102→   102→
+   103→   103→function getNetAmount(t: Transaction): number {
+   104→   104→  if (t.type === 'expense') return t.amount
+   105→   105→  let net = t.amount
+   106→   106→  if (t.taxRate) net -= (t.taxRate / 100) * t.amount
+   107→   107→  const platforms = parsePlatforms(t.platforms)
+   108→   108→  for (const p of platforms) {
+   109→   109→    net -= (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount
+   110→   110→  }
+   111→   111→  return net
+   112→   112→}
+   113→   113→
+   114→   114→function getExecutorFee(t: Transaction): number {
+   115→   115→  if (t.type === 'expense') return 0
+   116→   116→  const platforms = parsePlatforms(t.platforms)
+   117→   117→  let fee = 0
+   118→   118→  for (const p of platforms) {
+   119→   119→    fee += (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount
+   120→   120→  }
+   121→   121→  return fee
+   122→   122→}
+   123→   123→
+   124→   124→function getTaxAmount(t: Transaction): number {
+   125→   125→  if (t.type === 'expense' || !t.taxRate) return 0
+   126→   126→  return (t.taxRate / 100) * t.amount
+   127→   127→}
+   128→   128→
+   129→   129→function pluralize(n: number): string {
+   130→   130→  const abs = Math.abs(n) % 100
+   131→   131→  const n1 = abs % 10
+   132→   132→  if (abs > 10 && abs < 20) return 'записей'
+   133→   133→  if (n1 > 1 && n1 < 5) return 'записи'
+   134→   134→  if (n1 === 1) return 'запись'
+   135→   135→  return 'записей'
+   136→   136→}
+   137→   137→
+   138→   138→function groupByDate(transactions: Transaction[]): Record<string, Transaction[]> {
+   139→   139→  const groups: Record<string, Transaction[]> = {}
+   140→   140→  for (const t of transactions) {
+   141→   141→    const key = format(new Date(t.date), 'yyyy-MM-dd')
+   142→   142→    if (!groups[key]) groups[key] = []
+   143→   143→    groups[key].push(t)
+   144→   144→  }
+   145→   145→  const sorted = Object.entries(groups).sort(([a], [b]) => b.localeCompare(a))
+   146→   146→  const result: Record<string, Transaction[]> = {}
+   147→   147→  for (const [k, v] of sorted) result[k] = v
+   148→   148→  return result
+   149→   149→}
+   150→   150→
+   151→   151→// ──────────────────────────── Cache ────────────────────────────
+   152→   152→
+   153→   153→const txCache = new Map<string, { data: Transaction[]; ts: number }>()
+   154→   154→const CACHE_TTL = 30_000
+   155→   155→
+   156→   156→async function fetchWithCache(month: number, year: number): Promise<Transaction[]> {
+   157→   157→  const key = `${year}-${month}`
+   158→   158→  const cached = txCache.get(key)
+   159→   159→  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data
+   160→   160→  const res = await fetch(`/api/transactions?month=${month}&year=${year}`)
+   161→   161→  if (!res.ok) throw new Error('Fetch failed')
+   162→   162→  const data = await res.json()
+   163→   163→  txCache.set(key, { data, ts: Date.now() })
+   164→   164→  return data
+   165→   165→}
+   166→   166→
+   167→   167→function invalidateCache() { txCache.clear() }
+   168→   168→
+   169→   169→// ──────────────────────────── Memoized Sub-components ────────────────────────────
+   170→   170→
+   171→   171→const PlatformIcon = memo(function PlatformIcon({ name, size = 16 }: { name: string; size?: 12 | 16 | 20 }) {
+   172→   172→  const icon = PLATFORM_ICON_MAP[name]
+   173→   173→  if (!icon) return null
+   174→   174→  return <img src={icon} alt={name} width={size} height={size} className="inline-block" />
+   175→   175→})
+   176→   176→
+   177→   177→const TransactionRow = memo(function TransactionRow({
+   178→   178→  t, isBalanceHidden, onEdit, onDelete,
+   179→   179→}: {
+   180→   180→  t: Transaction
+   181→   181→  isBalanceHidden: boolean
+   182→   182→  onEdit: (t: Transaction) => void
+   183→   183→  onDelete: (id: string) => void
+   184→   184→}) {
+   185→   185→  const isIncome = t.type === 'income'
+   186→   186→  const platforms = parsePlatforms(t.platforms)
+   187→   187→  const categoryObj = EXPENSE_CATEGORIES.find(c => c.value === t.category)
+   188→   188→
+   189→   189→  return (
+   190→   190→    <div className="group flex items-center gap-3 py-3 px-1 hover:bg-secondary/50 transition-colors">
+   191→   191→      {/* Icon box */}
+   192→   192→      <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-sm font-black ${
+   193→   193→        isIncome
+   194→   194→          ? 'border-2 border-foreground'
+   195→   195→          : 'bg-brand text-white'
+   196→   196→      }`}>
+   197→   197→        {isIncome ? <ArrowUpRight className="w-4 h-4" /> : (
+   198→   198→          categoryObj ? <span className="text-base">{categoryObj.icon}</span> : <ArrowDownRight className="w-4 h-4" />
+   199→   199→        )}
+   200→   200→      </div>
+   201→   201→
+   202→   202→      {/* Description + tags */}
+   203→   203→      <div className="flex-1 min-w-0">
+   204→   204→        <div className="font-bold text-sm truncate">{t.description}</div>
+   205→   205→        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+   206→   206→          {t.category && categoryObj && (
+   207→   207→            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{categoryObj.label}</span>
+   208→   208→          )}
+   209→   209→          {platforms.map((p, i) => (
+   210→   210→            <span key={i} className="inline-flex items-center gap-0.5 bg-foreground text-background text-[10px] px-1 py-0.5 font-medium">
+   211→   211→              <PlatformIcon name={p.name} size={12} />
+   212→   212→              {p.reviewCount}
+   213→   213→            </span>
+   214→   214→          ))}
+   215→   215→          {isIncome && t.taxRate && (
+   216→   216→            <span className="bg-brand text-white text-[10px] px-1 py-0.5 font-medium">-{t.taxRate}%</span>
+   217→   217→          )}
+   218→   218→          <span className="text-[10px] text-muted-foreground">{formatDate(t.date)}</span>
+   219→   219→          {isIncome && platforms.length > 0 && (
+   220→   220→            <span className="text-[10px] text-muted-foreground">
+   221→   221→              (комиссии: {formatCurrency(getExecutorFee(t))})
+   222→   222→            </span>
+   223→   223→          )}
+   224→   224→        </div>
+   225→   225→      </div>
+   226→   226→
+   227→   227→      {/* Amount */}
+   228→   228→      <div className="flex-shrink-0 flex items-center gap-2">
+   229→   229→        <span className={`font-black text-sm ${isIncome ? '' : 'text-brand'}`}>
+   230→   230→          {isBalanceHidden ? '•••' : `${isIncome ? '+' : '−'}${formatCurrency(t.amount)}`}
+   231→   231→        </span>
+   232→   232→        <div className="flex gap-1 opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity max-sm:opacity-50">
+   233→   233→          <button onClick={() => onEdit(t)} className="p-1 hover:bg-secondary"><Pencil className="w-3.5 h-3.5" /></button>
+   234→   234→          <button onClick={() => onDelete(t.id)} className="p-1 hover:bg-secondary"><Trash2 className="w-3.5 h-3.5" /></button>
+   235→   235→        </div>
+   236→   236→      </div>
+   237→   237→    </div>
+   238→   238→  )
+   239→   239→})
+   240→   240→
+   241→   241→const StatCard = memo(function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+   242→   242→  return (
+   243→   243→    <div className="border-2 p-3 space-y-1">
+   244→   244→      <div className="flex items-center gap-2">
+   245→   245→        {icon}
+   246→   246→        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{label}</span>
+   247→   247→      </div>
+   248→   248→      <div className="font-black text-lg">{value}</div>
+   249→   249→    </div>
+   250→   250→  )
+   251→   251→})
+   252→   252→
+   253→   253→// ──────────────────────────── Transaction Form ────────────────────────────
+   254→   254→
+   255→   255→function TransactionForm({
+   256→   256→  type, setType, amount, setAmount, description, setDescription,
+   257→   257→  date, setDate, taxRate, setTaxRate, platforms, togglePlatform,
+   258→   258→  setPlatformReviewCount, category, setCategory, isSubmitting,
+   259→   259→  onSubmit, submitLabel,
+   260→   260→}: {
+   261→   261→  type: string; setType: (v: string) => void
+   262→   262→  amount: string; setAmount: (v: string) => void
+   263→   263→  description: string; setDescription: (v: string) => void
+   264→   264→  date: string; setDate: (v: string) => void
+   265→   265→  taxRate: string; setTaxRate: (v: string) => void
+   266→   266→  platforms: PlatformEntry[]; togglePlatform: (name: string) => void
+   267→   267→  setPlatformReviewCount: (name: string, count: number) => void
+   268→   268→  category: string; setCategory: (v: string) => void
+   269→   269→  isSubmitting: boolean
+   270→   270→  onSubmit: () => void
+   271→   271→  submitLabel: string
+   272→   272→}) {
+   273→   273→  const isIncome = type === 'income'
+   274→   274→  const selectedPlatforms = platforms.filter(p => p.reviewCount > 0)
+   275→   275→  const numAmount = parseFloat(amount) || 0
+   276→   276→
+   277→   277→  const totalExecutorFee = selectedPlatforms.reduce((sum, p) => sum + (PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount, 0)
+   278→   278→  const totalTax = (taxRate === '4' || taxRate === '6') ? (parseInt(taxRate) / 100) * numAmount : 0
+   279→   279→  const netAmount = isIncome ? numAmount - totalTax - totalExecutorFee : numAmount
+   280→   280→
+   281→   281→  return (
+   282→   282→    <div className="space-y-4">
+   283→   283→      {/* Type */}
+   284→   284→      <div className="grid grid-cols-2 gap-2">
+   285→   285→        <button
+   286→   286→          type="button"
+   287→   287→          onClick={() => { setType('income') }}
+   288→   288→          className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
+   289→   289→            isIncome ? 'bg-foreground text-background border-foreground' : 'border-border hover:border-foreground'
+   290→   290→          }`}
+   291→   291→        >
+   292→   292→          Доход
+   293→   293→        </button>
+   294→   294→        <button
+   295→   295→          type="button"
+   296→   296→          onClick={() => { setType('expense'); setTaxRate('none') }}
+   297→   297→          className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
+   298→   298→            !isIncome ? 'bg-brand text-white border-brand' : 'border-border hover:border-brand'
+   299→   299→          }`}
+   300→   300→        >
+   301→   301→          Расход
+   302→   302→        </button>
+   303→   303→      </div>
+   304→   304→
+   305→   305→      {/* Amount */}
+   306→   306→      <div className="relative">
+   307→   307→        <Input
+   308→   308→          type="number"
+   309→   309→          placeholder="0"
+   310→   310→          value={amount}
+   311→   311→          onChange={e => setAmount(e.target.value)}
+   312→   312→          className="text-2xl font-black h-14 pr-10 border-2"
+   313→   313→          min="0"
+   314→   314→          step="any"
+   315→   315→        />
+   316→   316→        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-muted-foreground">₽</span>
+   317→   317→      </div>
+   318→   318→
+   319→   319→      {/* Category (expense only) */}
+   320→   320→      {!isIncome && (
+   321→   321→        <div>
+   322→   322→          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Категория</label>
+   323→   323→          <div className="grid grid-cols-4 gap-1.5">
+   324→   324→            {EXPENSE_CATEGORIES.map(c => (
+   325→   325→              <button
+   326→   326→                key={c.value}
+   327→   327→                type="button"
+   328→   328→                onClick={() => setCategory(c.value)}
+   329→   329→                className={`flex flex-col items-center gap-0.5 p-2 text-[10px] border-2 transition-colors ${
+   330→   330→                  category === c.value
+   331→   331→                    ? 'bg-foreground text-background border-foreground'
+   332→   332→                    : 'border-border hover:border-foreground'
+   333→   333→                }`}
+   334→   334→              >
+   335→   335→                <span className="text-base">{c.icon}</span>
+   336→   336→                <span className="uppercase tracking-wider">{c.label}</span>
+   337→   337→              </button>
+   338→   338→            ))}
+   339→   339→          </div>
+   340→   340→        </div>
+   341→   341→      )}
+   342→   342→
+   343→   343→      {/* Platforms (income only) */}
+   344→   344→      {isIncome && (
+   345→   345→        <div>
+   346→   346→          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Площадки</label>
+   347→   347→          <div className="grid grid-cols-3 gap-1.5">
+   348→   348→            {PLATFORMS.map(p => {
+   349→   349→              const selected = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
+   350→   350→              return (
+   351→   351→                <button
+   352→   352→                  key={p.name}
+   353→   353→                  type="button"
+   354→   354→                  onClick={() => togglePlatform(p.name)}
+   355→   355→                  className={`flex items-center gap-1.5 p-2 text-[10px] border-2 transition-colors ${
+   356→   356→                    selected
+   357→   357→                      ? 'bg-foreground text-background border-foreground'
+   358→   358→                      : 'border-border hover:border-foreground'
+   359→   359→                  }`}
+   360→   360→                >
+   361→   361→                  <PlatformIcon name={p.name} size={16} />
+   362→   362→                  <span className="truncate uppercase tracking-wider">{p.name}</span>
+   363→   363→                  {selected && <span className="ml-auto text-brand-light">✓</span>}
+   364→   364→                </button>
+   365→   365→              )
+   366→   366→            })}
+   367→   367→          </div>
+   368→   368→        </div>
+   369→   369→      )}
+   370→   370→
+   371→   371→      {/* Review counts (income + selected platforms) */}
+   372→   372→      {isIncome && selectedPlatforms.length > 0 && (
+   373→   373→        <div className="space-y-2">
+   374→   374→          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Количество отзывов</label>
+   375→   375→          {selectedPlatforms.map(p => (
+   376→   376→            <div key={p.name} className="flex items-center gap-2 border-2 p-2">
+   377→   377→              <PlatformIcon name={p.name} size={20} />
+   378→   378→              <span className="text-xs font-medium flex-shrink-0">{p.name}</span>
+   379→   379→              <Input
+   380→   380→                type="number"
+   381→   381→                min="1"
+   382→   382→                value={p.reviewCount}
+   383→   383→                onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value) || 0)}
+   384→   384→                className="h-8 w-20 text-sm border-2"
+   385→   385→              />
+   386→   386→              <span className="text-[10px] text-muted-foreground">
+   387→   387→                {PLATFORM_FEE_MAP[p.name] || 0}₽ × {p.reviewCount} = {((PLATFORM_FEE_MAP[p.name] || 0) * p.reviewCount)}₽
+   388→   388→              </span>
+   389→   389→              <button
+   390→   390→                type="button"
+   391→   391→                onClick={() => setPlatformReviewCount(p.name, 0)}
+   392→   392→                className="ml-auto p-1 hover:bg-secondary"
+   393→   393→              >
+   394→   394→                <X className="w-3 h-3" />
+   395→   395→              </button>
+   396→   396→            </div>
+   397→   397→          ))}
+   398→   398→        </div>
+   399→   399→      )}
+   400→   400→
+   401→   401→      {/* Tax rate (income only) */}
+   402→   402→      {isIncome && (
+   403→   403→        <div>
+   404→   404→          <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Налоговый вычет</label>
+   405→   405→          <div className="grid grid-cols-3 gap-2">
+   406→   406→            {(['none', '4', '6'] as const).map(rate => (
+   407→   407→              <button
+   408→   408→                key={rate}
+   409→   409→                type="button"
+   410→   410→                onClick={() => setTaxRate(rate)}
+   411→   411→                className={`h-10 text-sm font-black uppercase tracking-[0.15em] border-2 transition-colors ${
+   412→   412→                  taxRate === rate
+   413→   413→                    ? (rate === 'none' ? 'bg-foreground text-background border-foreground' : 'bg-brand text-white border-brand')
+   414→   414→                    : 'border-border hover:border-foreground'
+   415→   415→                }`}
+   416→   416→              >
+   417→   417→                {rate === 'none' ? 'Без вычета' : `${rate}%`}
+   418→   418→              </button>
+   419→   419→            ))}
+   420→   420→          </div>
+   421→   421→        </div>
+   422→   422→      )}
+   423→   423→
+   424→   424→      {/* Preview (income + filled amount) */}
+   425→   425→      {isIncome && numAmount > 0 && (
+   426→   426→        <div className="border-2 border-border p-4 bg-secondary/50 space-y-2">
+   427→   427→          <div className="flex justify-between text-sm">
+   428→   428→            <span className="text-muted-foreground">Сумма</span>
+   429→   429→            <span className="font-bold">{formatFullCurrency(numAmount)}</span>
+   430→   430→          </div>
+   431→   431→          {totalTax > 0 && (
+   432→   432→            <div className="flex justify-between text-sm">
+   433→   433→              <span className="text-muted-foreground">Налог</span>
+   434→   434→              <span className="font-bold text-brand">−{formatFullCurrency(totalTax)}</span>
+   435→   435→            </div>
+   436→   436→          )}
+   437→   437→          {totalExecutorFee > 0 && (
+   438→   438→            <div className="flex justify-between text-sm">
+   439→   439→              <span className="text-muted-foreground">Исполнители</span>
+   440→   440→              <span className="font-bold text-brand">−{formatFullCurrency(totalExecutorFee)}</span>
+   441→   441→            </div>
+   442→   442→          )}
+   443→   443→          <Separator />
+   444→   444→          <div className="flex justify-between text-sm">
+   445→   445→            <span className="font-black uppercase tracking-[0.15em]">К выдаче</span>
+   446→   446→            <span className="font-black text-lg">{formatFullCurrency(netAmount)}</span>
+   447→   447→          </div>
+   448→   448→        </div>
+   449→   449→      )}
+   450→   450→
+   451→   451→      {/* Description */}
+   452→   452→      <div>
+   453→   453→        <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-1 block">Описание</label>
+   454→   454→        <Input
+   455→   455→          value={description}
+   456→   456→          onChange={e => setDescription(e.target.value)}
+   457→   457→          placeholder="Например: Зарплата за январь"
+   458→   458→          className="border-2"
+   459→   459→        />
+   460→   460→      </div>
+   461→   461→
+   462→   462→      {/* Date */}
+   463→   463→      <div>
+   464→   464→        <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-1 block">Дата</label>
+   465→   465→        <Input
+   466→   466→          type="date"
+   467→   467→          value={date}
+   468→   468→          onChange={e => setDate(e.target.value)}
+   469→   469→          className="border-2"
+   470→   470→        />
+   471→   471→      </div>
+   472→   472→
+   473→   473→      {/* Submit */}
+   474→   474→      <Button
+   475→   475→        onClick={onSubmit}
+   476→   476→        disabled={isSubmitting}
+   477→   477→        className={`w-full h-12 font-black uppercase tracking-[0.15em] ${
+   478→   478→          isIncome ? 'bg-foreground text-background hover:bg-foreground/90' : 'bg-brand text-white hover:bg-brand/90'
+   479→   479→        }`}
+   480→   480→      >
+   481→   481→        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : submitLabel}
+   482→   482→      </Button>
+   483→   483→    </div>
+   484→   484→  )
+   485→   485→}
+   486→   486→
+   487→   487→// ──────────────────────────── Main Component ────────────────────────────
+   488→   488→
+   489→   489→export default function Home() {
+   490→   490→  const now = new Date()
+   491→   491→
+   492→   492→  // State
+   493→   493→  const [transactions, setTransactions] = useState<Transaction[]>([])
+   494→   494→  const [isLoading, setIsLoading] = useState(true)
+   495→   495→  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
+   496→   496→  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+   497→   497→  const [isDialogOpen, setIsDialogOpen] = useState(false)
+   498→   498→  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+   499→   499→  const [isSubmitting, setIsSubmitting] = useState(false)
+   500→   500→  const [filterTab, setFilterTab] = useState<'all' | 'income' | 'expense'>('all')
+   501→   501→  const [isBalanceHidden, setIsBalanceHidden] = useState(false)
+   502→   502→  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+   503→   503→  const [searchQuery, setSearchQuery] = useState('')
+   504→   504→  const [showSearch, setShowSearch] = useState(false)
+   505→   505→  const [showScrollTop, setShowScrollTop] = useState(false)
+   506→   506→
+   507→   507→  // Add form
+   508→   508→  const [formType, setFormType] = useState('income')
+   509→   509→  const [formAmount, setFormAmount] = useState('')
+   510→   510→  const [formDescription, setFormDescription] = useState('')
+   511→   511→  const [formDate, setFormDate] = useState(format(now, 'yyyy-MM-dd'))
+   512→   512→  const [formTaxRate, setFormTaxRate] = useState<string>('none')
+   513→   513→  const [formPlatforms, setFormPlatforms] = useState<PlatformEntry[]>(
+   514→   514→    PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))
+   515→   515→  )
+   516→   516→  const [formCategory, setFormCategory] = useState('other')
+   517→   517→
+   518→   518→  // Edit form
+   519→   519→  const [editId, setEditId] = useState('')
+   520→   520→  const [editType, setEditType] = useState('income')
+   521→   521→  const [editAmount, setEditAmount] = useState('')
+   522→   522→  const [editDescription, setEditDescription] = useState('')
+   523→   523→  const [editDate, setEditDate] = useState('')
+   524→   524→  const [editTaxRate, setEditTaxRate] = useState<string>('none')
+   525→   525→  const [editPlatforms, setEditPlatforms] = useState<PlatformEntry[]>(
+   526→   526→    PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))
+   527→   527→  )
+   528→   528→  const [editCategory, setEditCategory] = useState('other')
+   529→   529→
+   530→   530→  // Refs
+   531→   531→  const searchRef = useRef<HTMLInputElement>(null)
+   532→   532→  const isFetchingRef = useRef(false)
+   533→   533→
+   534→   534→  // Scroll handler
+   535→   535→  useEffect(() => {
+   536→   536→    let rafId: number
+   537→   537→    const handleScroll = () => {
+   538→   538→      if (rafId) cancelAnimationFrame(rafId)
+   539→   539→      rafId = requestAnimationFrame(() => {
+   540→   540→        setShowScrollTop(window.scrollY > 400)
+   541→   541→      })
+   542→   542→    }
+   543→   543→    window.addEventListener('scroll', handleScroll, { passive: true })
+   544→   544→    return () => { window.removeEventListener('scroll', handleScroll); cancelAnimationFrame(rafId) }
+   545→   545→  }, [])
+   546→   546→
+   547→   547→  // Fetch transactions
+   548→   548→  const fetchTransactions = useCallback(async () => {
+   549→   549→    if (isFetchingRef.current) return
+   550→   550→    isFetchingRef.current = true
+   551→   551→    setIsLoading(true)
+   552→   552→    try {
+   553→   553→      const data = await fetchWithCache(selectedMonth, selectedYear)
+   554→   554→      setTransactions(data)
+   555→   555→    } catch (err) {
+   556→   556→      console.error(err)
+   557→   557→      toast.error('Ошибка загрузки транзакций')
+   558→   558→    } finally {
+   559→   559→      setIsLoading(false)
+   560→   560→      isFetchingRef.current = false
+   561→   561→    }
+   562→   562→  }, [selectedMonth, selectedYear])
+   563→   563→
+   564→   564→  useEffect(() => { fetchTransactions() }, [fetchTransactions])
+   565→   565→
+   566→   566→  // Toggle platform helpers
+   567→   567→  const togglePlatform = useCallback((name: string) => {
+   568→   568→    setFormPlatforms(prev => prev.map(p =>
+   569→   569→      p.name === name ? { ...p, reviewCount: p.reviewCount > 0 ? 0 : 1 } : p
+   570→   570→    ))
+   571→   571→  }, [])
+   572→   572→
+   573→   573→  const setPlatformReviewCount = useCallback((name: string, count: number) => {
+   574→   574→    setFormPlatforms(prev => prev.map(p =>
+   575→   575→      p.name === name ? { ...p, reviewCount: count } : p
+   576→   576→    ))
+   577→   577→  }, [])
+   578→   578→
+   579→   579→  const toggleEditPlatform = useCallback((name: string) => {
+   580→   580→    setEditPlatforms(prev => prev.map(p =>
+   581→   581→      p.name === name ? { ...p, reviewCount: p.reviewCount > 0 ? 0 : 1 } : p
+   582→   582→    ))
+   583→   583→  }, [])
+   584→   584→
+   585→   585→  const setEditPlatformReviewCount = useCallback((name: string, count: number) => {
+   586→   586→    setEditPlatforms(prev => prev.map(p =>
+   587→   587→      p.name === name ? { ...p, reviewCount: count } : p
+   588→   588→    ))
+   589→   589→  }, [])
+   590→   590→
+   591→   591→  // Open edit dialog
+   592→   592→  const openEditDialog = useCallback((t: Transaction) => {
+   593→   593→    setEditId(t.id)
+   594→   594→    setEditType(t.type)
+   595→   595→    setEditAmount(String(t.amount))
+   596→   596→    setEditDescription(t.description)
+   597→   597→    setEditDate(format(new Date(t.date), 'yyyy-MM-dd'))
+   598→   598→    setEditTaxRate(t.taxRate ? String(t.taxRate) : 'none')
+   599→   599→    setEditCategory(t.category || 'other')
+   600→   600→
+   601→   601→    const parsedPlatforms = parsePlatforms(t.platforms)
+   602→   602→    setEditPlatforms(PLATFORMS.map(p => {
+   603→   603→      const found = parsedPlatforms.find(pp => pp.name === p.name)
+   604→   604→      return { name: p.name, reviewCount: found ? found.reviewCount : 0 }
+   605→   605→    }))
+   606→   606→
+   607→   607→    setIsEditDialogOpen(true)
+   608→   608→  }, [])
+   609→   609→
+   610→   610→  // Validation
+   611→   611→  const validateForm = useCallback((mode: 'add' | 'edit'): string | null => {
+   612→   612→    const amt = mode === 'add' ? formAmount : editAmount
+   613→   613→    const desc = mode === 'add' ? formDescription : editDescription
+   614→   614→    if (!parseFloat(amt) || parseFloat(amt) <= 0) return 'Укажите сумму'
+   615→   615→    if (!desc.trim()) return 'Укажите описание'
+   616→   616→    return null
+   617→   617→  }, [formAmount, formDescription, editAmount, editDescription])
+   618→   618→
+   619→   619→  // Reset add form
+   620→   620→  const resetAddForm = useCallback(() => {
+   621→   621→    setFormType('income')
+   622→   622→    setFormAmount('')
+   623→   623→    setFormDescription('')
+   624→   624→    setFormDate(format(new Date(), 'yyyy-MM-dd'))
+   625→   625→    setFormTaxRate('none')
+   626→   626→    setFormPlatforms(PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 })))
+   627→   627→    setFormCategory('other')
+   628→   628→  }, [])
+   629→   629→
+   630→   630→  // Submit handlers
+   631→   631→  const handleAddSubmit = useCallback(async () => {
+   632→   632→    const error = validateForm('add')
+   633→   633→    if (error) { toast.error(error); return }
+   634→   634→
+   635→   635→    setIsSubmitting(true)
+   636→   636→    try {
+   637→   637→      const selectedPlats = formPlatforms.filter(p => p.reviewCount > 0)
+   638→   638→      const res = await fetch('/api/transactions', {
+   639→   639→        method: 'POST',
+   640→   640→        headers: { 'Content-Type': 'application/json' },
+   641→   641→        body: JSON.stringify({
+   642→   642→          type: formType,
+   643→   643→          amount: parseFloat(formAmount),
+   644→   644→          description: formDescription,
+   645→   645→          date: formDate || new Date().toISOString(),
+   646→   646→          taxRate: formTaxRate === 'none' ? null : parseInt(formTaxRate),
+   647→   647→          platforms: formType === 'income' && selectedPlats.length > 0 ? selectedPlats : null,
+   648→   648→          category: formType === 'expense' ? formCategory : null,
+   649→   649→        }),
+   650→   650→      })
+   651→   651→      if (!res.ok) throw new Error('Failed')
+   652→   652→      invalidateCache()
+   653→   653→      await fetchTransactions()
+   654→   654→      setIsDialogOpen(false)
+   655→   655→      resetAddForm()
+   656→   656→      toast.success('Транзакция добавлена')
+   657→   657→    } catch {
+   658→   658→      toast.error('Ошибка при добавлении')
+   659→   659→    } finally {
+   660→   660→      setIsSubmitting(false)
+   661→   661→    }
+   662→   662→  }, [formType, formAmount, formDescription, formDate, formTaxRate, formPlatforms, formCategory, validateForm, fetchTransactions, resetAddForm])
+   663→   663→
+   664→   664→  const handleEditSubmit = useCallback(async () => {
+   665→   665→    const error = validateForm('edit')
+   666→   666→    if (error) { toast.error(error); return }
+   667→   667→
+   668→   668→    setIsSubmitting(true)
+   669→   669→    try {
+   670→   670→      const selectedPlats = editPlatforms.filter(p => p.reviewCount > 0)
+   671→   671→      const res = await fetch('/api/transactions', {
+   672→   672→        method: 'PUT',
+   673→   673→        headers: { 'Content-Type': 'application/json' },
+   674→   674→        body: JSON.stringify({
+   675→   675→          id: editId,
+   676→   676→          type: editType,
+   677→   677→          amount: parseFloat(editAmount),
+   678→   678→          description: editDescription,
+   679→   679→          date: editDate || new Date().toISOString(),
+   680→   680→          taxRate: editTaxRate === 'none' ? null : parseInt(editTaxRate),
+   681→   681→          platforms: editType === 'income' && selectedPlats.length > 0 ? selectedPlats : null,
+   682→   682→          category: editType === 'expense' ? editCategory : null,
+   683→   683→        }),
+   684→   684→      })
+   685→   685→      if (!res.ok) throw new Error('Failed')
+   686→   686→      invalidateCache()
+   687→   687→      await fetchTransactions()
+   688→   688→      setIsEditDialogOpen(false)
+   689→   689→      toast.success('Транзакция обновлена')
+   690→   690→    } catch {
+   691→   691→      toast.error('Ошибка при обновлении')
+   692→   692→    } finally {
+   693→   693→      setIsSubmitting(false)
+   694→   694→    }
+   695→   695→  }, [editId, editType, editAmount, editDescription, editDate, editTaxRate, editPlatforms, editCategory, validateForm, fetchTransactions])
+   696→   696→
+   697→   697→  const handleDelete = useCallback(async () => {
+   698→   698→    if (!deleteTarget) return
+   699→   699→    try {
+   700→   700→      const res = await fetch(`/api/transactions?id=${deleteTarget}`, { method: 'DELETE' })
+   701→   701→      if (!res.ok) throw new Error('Failed')
+   702→   702→      invalidateCache()
+   703→   703→      await fetchTransactions()
+   704→   704→      setDeleteTarget(null)
+   705→   705→      toast.success('Транзакция удалена')
+   706→   706→    } catch {
+   707→   707→      toast.error('Ошибка при удалении')
+   708→   708→    }
+   709→   709→  }, [deleteTarget, fetchTransactions])
+   710→   710→
+   711→   711→  // Month navigation
+   712→   712→  const goToPrevMonth = useCallback(() => {
+   713→   713→    setSelectedMonth(prev => {
+   714→   714→      if (prev === 1) { setSelectedYear(y => y - 1); return 12 }
+   715→   715→      return prev - 1
+   716→   716→    })
+   717→   717→  }, [])
+   718→   718→
+   719→   719→  const goToNextMonth = useCallback(() => {
+   720→   720→    setSelectedMonth(prev => {
+   721→   721→      if (prev === 12) { setSelectedYear(y => y + 1); return 1 }
+   722→   722→      return prev + 1
+   723→   723→    })
+   724→   724→  }, [])
+   725→   725→
+   726→   726→  const goToCurrentMonth = useCallback(() => {
+   727→   727→    const n = new Date()
+   728→   728→    setSelectedMonth(n.getMonth() + 1)
+   729→   729→    setSelectedYear(n.getFullYear())
+   730→   730→  }, [])
+   731→   731→
+   732→   732→  // ──────────────── Memoized computations ────────────────
+   733→   733→
+   734→   734→  const stats = useMemo(() => {
+   735→   735→    const incomes = transactions.filter(t => t.type === 'income')
+   736→   736→    const expenses = transactions.filter(t => t.type === 'expense')
+   737→   737→
+   738→   738→    const totalIncome = incomes.reduce((s, t) => s + getNetAmount(t), 0)
+   739→   739→    const totalGrossIncome = incomes.reduce((s, t) => s + t.amount, 0)
+   740→   740→    const totalExecutorFee = incomes.reduce((s, t) => s + getExecutorFee(t), 0)
+   741→   741→    const totalTax = incomes.reduce((s, t) => s + getTaxAmount(t), 0)
+   742→   742→    const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
+   743→   743→    const balance = totalIncome - totalExpense
+   744→   744→
+   745→   745→    const incomeCount = incomes.length
+   746→   746→    const expenseCount = expenses.length
+   747→   747→    const avgIncome = incomeCount ? totalIncome / incomeCount : 0
+   748→   748→    const avgExpense = expenseCount ? totalExpense / expenseCount : 0
+   749→   749→    const maxIncome = incomeCount ? Math.max(...incomes.map(t => getNetAmount(t))) : 0
+   750→   750→    const maxExpense = expenseCount ? Math.max(...expenses.map(t => t.amount)) : 0
+   751→   751→
+   752→   752→    const expenseRatio = totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 0
+   753→   753→
+   754→   754→    const categoryBreakdown: Record<string, number> = {}
+   755→   755→    for (const t of expenses) {
+   756→   756→      if (t.category) categoryBreakdown[t.category] = (categoryBreakdown[t.category] || 0) + t.amount
+   757→   757→    }
+   758→   758→
+   759→   759→    const dailyData: Record<number, { income: number; expense: number }> = {}
+   760→   760→    for (const t of transactions) {
+   761→   761→      const day = new Date(t.date).getDate()
+   762→   762→      if (!dailyData[day]) dailyData[day] = { income: 0, expense: 0 }
+   763→   763→      if (t.type === 'income') dailyData[day].income += getNetAmount(t)
+   764→   764→      else dailyData[day].expense += t.amount
+   765→   765→    }
+   766→   766→
+   767→   767→    const maxDaily = Math.max(...Object.values(dailyData).flatMap(d => [d.income, d.expense]), 0)
+   768→   768→
+   769→   769→    return {
+   770→   770→      totalIncome, totalGrossIncome, totalExecutorFee, totalTax, totalExpense,
+   771→   771→      balance, incomeCount, expenseCount, avgIncome, avgExpense,
+   772→   772→      maxIncome, maxExpense, expenseRatio, categoryBreakdown, dailyData, maxDaily,
+   773→   773→    }
+   774→   774→  }, [transactions])
+   775→   775→
+   776→   776→  const filteredTransactions = useMemo(() => {
+   777→   777→    let filtered = transactions
+   778→   778→    if (filterTab === 'income') filtered = filtered.filter(t => t.type === 'income')
+   779→   779→    if (filterTab === 'expense') filtered = filtered.filter(t => t.type === 'expense')
+   780→   780→    if (searchQuery.trim()) {
+   781→   781→      const q = searchQuery.toLowerCase()
+   782→   782→      filtered = filtered.filter(t =>
+   783→   783→        t.description.toLowerCase().includes(q) ||
+   784→   784→        (t.category && t.category.toLowerCase().includes(q)) ||
+   785→   785→        String(t.amount).includes(q)
+   786→   786→      )
+   787→   787→    }
+   788→   788→    return filtered
+   789→   789→  }, [transactions, filterTab, searchQuery])
+   790→   790→
+   791→   791→  const groupedTransactions = useMemo(() => groupByDate(filteredTransactions), [filteredTransactions])
+   792→   792→
+   793→   793→  const daysInMonth = useMemo(() => {
+   794→   794→    return getDaysInMonth(new Date(selectedYear, selectedMonth - 1))
+   795→   795→  }, [selectedMonth, selectedYear])
+   796→   796→
+   797→   797→  const chartDays = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth])
+   798→   798→
+   799→   799→  const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear()
+   800→   800→
+   801→   801→  // ──────────────── Render ────────────────
+   802→   802→
+   803→   803→  return (
+   804→   804→    <div className="min-h-screen">
+   805→   805→      {/* Navigation */}
+   806→   806→      <nav className="fixed top-0 left-0 right-0 z-50 mix-blend-difference">
+   807→   807→        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+   808→   808→          <div className="flex items-center gap-2">
+   809→   809→            <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
+   810→   810→              <div className="bg-white" />
+   811→   811→              <div className="bg-white opacity-30" />
+   812→   812→              <div className="bg-white opacity-30" />
+   813→   813→              <div className="bg-white" />
+   814→   814→            </div>
+   815→   815→            <span className="text-white font-black text-sm uppercase tracking-[0.3em]">Финансы</span>
+   816→   816→          </div>
+   817→   817→          <div className="flex items-center gap-2">
+   818→   818→            <button
+   819→   819→              onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchRef.current?.focus(), 100) }}
+   820→   820→              className="p-2 text-white hover:opacity-70 transition-opacity"
+   821→   821→            >
+   822→   822→              {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+   823→   823→            </button>
+   824→   824→            <button
+   825→   825→              onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
+   826→   826→              className="p-2 bg-brand text-white hover:bg-brand-light transition-colors"
+   827→   827→            >
+   828→   828→              <Plus className="w-5 h-5" />
+   829→   829→            </button>
+   830→   830→          </div>
+   831→   831→        </div>
+   832→   832→      </nav>
+   833→   833→
+   834→   834→      {/* Search panel */}
+   835→   835→      {showSearch && (
+   836→   836→        <div className="fixed top-14 left-0 right-0 z-40 bg-background border-b-2 border-border animate-[slideDown_0.2s_ease-out]">
+   837→   837→          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
+   838→   838→            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+   839→   839→            <input
+   840→   840→              ref={searchRef}
+   841→   841→              type="text"
+   842→   842→              value={searchQuery}
+   843→   843→              onChange={e => setSearchQuery(e.target.value)}
+   844→   844→              placeholder="Поиск транзакций..."
+   845→   845→              className="flex-1 bg-transparent outline-none text-sm"
+   846→   846→            />
+   847→   847→            {searchQuery && (
+   848→   848→              <button onClick={() => setSearchQuery('')} className="p-1 hover:bg-secondary">
+   849→   849→                <X className="w-4 h-4" />
+   850→   850→              </button>
+   851→   851→            )}
+   852→   852→          </div>
+   853→   853→        </div>
+   854→   854→      )}
+   855→   855→
+   856→   856→      {/* Main content */}
+   857→   857→      <main className="max-w-3xl mx-auto px-4 pt-20 pb-24">
+   858→   858→        {/* Hero section */}
+   859→   859→        <section className="mb-8">
+   860→   860→          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-4">
+   861→   861→            [ Трекер доходов и расходов ]
+   862→   862→          </p>
+   863→   863→
+   864→   864→          {/* Month navigator */}
+   865→   865→          <div className="flex items-center justify-between mb-6">
+   866→   866→            <button onClick={goToPrevMonth} className="p-2 hover:bg-secondary transition-colors">
+   867→   867→              <ChevronLeft className="w-5 h-5" />
+   868→   868→            </button>
+   869→   869→            <div className="flex items-center gap-3">
+   870→   870→              <h1 className="font-black text-xl uppercase tracking-tighter">
+   871→   871→                {MONTHS_RU[selectedMonth - 1]} {selectedYear}
+   872→   872→              </h1>
+   873→   873→              {!isCurrentMonth && (
+   874→   874→                <button
+   875→   875→                  onClick={goToCurrentMonth}
+   876→   876→                  className="text-[10px] uppercase tracking-[0.15em] border-2 border-border px-2 py-1 hover:border-foreground transition-colors"
+   877→   877→                >
+   878→   878→                  Сегодня
+   879→   879→                </button>
+   880→   880→              )}
+   881→   881→            </div>
+   882→   882→            <button onClick={goToNextMonth} className="p-2 hover:bg-secondary transition-colors">
+   883→   883→              <ChevronRight className="w-5 h-5" />
+   884→   884→            </button>
+   885→   885→          </div>
+   886→   886→
+   887→   887→          {/* Balance */}
+   888→   888→          <div className="mb-6">
+   889→   889→            <div className="flex items-end gap-3">
+   890→   890→              <div className="font-black text-4xl sm:text-6xl md:text-[80px] tracking-tighter leading-none">
+   891→   891→                {isBalanceHidden ? '•••' : formatCurrency(stats.balance)}
+   892→   892→              </div>
+   893→   893→              <button
+   894→   894→                onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+   895→   895→                className="pb-2 text-muted-foreground hover:text-foreground transition-colors"
+   896→   896→              >
+   897→   897→                {isBalanceHidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+   898→   898→              </button>
+   899→   899→            </div>
+   900→   900→            <div className="h-1 w-24 bg-brand opacity-20 mt-2" />
+   901→   901→          </div>
+   902→   902→
+   903→   903→          {/* Income / Expense summary */}
+   904→   904→          <div className="grid grid-cols-2 gap-4 mb-4">
+   905→   905→            <div className="flex items-center gap-3">
+   906→   906→              <div className="w-8 h-8 border-2 border-foreground flex items-center justify-center">
+   907→   907→                <ArrowUpRight className="w-4 h-4" />
+   908→   908→              </div>
+   909→   909→              <div>
+   910→   910→                <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Доходы</div>
+   911→   911→                <div className="font-black text-lg">
+   912→   912→                  {isBalanceHidden ? '•••' : formatCurrency(stats.totalIncome)}
+   913→   913→                </div>
+   914→   914→                {!isBalanceHidden && stats.totalGrossIncome !== stats.totalIncome && (
+   915→   915→                  <div className="text-[10px] text-muted-foreground">
+   916→   916→                    Гросс {formatCurrency(stats.totalGrossIncome)}
+   917→   917→                    {stats.totalTax > 0 && ` · Налог ${formatCurrency(stats.totalTax)}`}
+   918→   918→                    {stats.totalExecutorFee > 0 && ` · Исполнители ${formatCurrency(stats.totalExecutorFee)}`}
+   919→   919→                  </div>
+   920→   920→                )}
+   921→   921→              </div>
+   922→   922→            </div>
+   923→   923→            <div className="flex items-center gap-3">
+   924→   924→              <div className="w-8 h-8 bg-brand text-white flex items-center justify-center">
+   925→   925→                <ArrowDownRight className="w-4 h-4" />
+   926→   926→              </div>
+   927→   927→              <div>
+   928→   928→                <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Расходы</div>
+   929→   929→                <div className={`font-black text-lg ${isBalanceHidden ? '' : 'text-brand'}`}>
+   930→   930→                  {isBalanceHidden ? '•••' : formatCurrency(stats.totalExpense)}
+   931→   931→                </div>
+   932→   932→              </div>
+   933→   933→            </div>
+   934→   934→          </div>
+   935→   935→
+   936→   936→          {/* Expense ratio bar */}
+   937→   937→          {stats.totalIncome > 0 && !isBalanceHidden && (
+   938→   938→            <div className="space-y-1">
+   939→   939→              <div className="flex justify-between text-[10px] uppercase tracking-[0.15em]">
+   940→   940→                <span className="text-muted-foreground">Расходы от доходов</span>
+   941→   941→                <span className="font-black">{stats.expenseRatio.toFixed(0)}%</span>
+   942→   942→              </div>
+   943→   943→              <div className="h-2 bg-secondary">
+   944→   944→                <div
+   945→   945→                  className={`h-full transition-all ${
+   946→   946→                    stats.expenseRatio > 90 ? 'bg-brand' : stats.expenseRatio > 70 ? 'bg-brand/70' : 'bg-foreground/60'
+   947→   947→                  }`}
+   948→   948→                  style={{ width: `${Math.min(stats.expenseRatio, 100)}%` }}
+   949→   949→                />
+   950→   950→              </div>
+   951→   951→            </div>
+   952→   952→          )}
+   953→   953→        </section>
+   954→   954→
+   955→   955→        {/* Quick stats */}
+   956→   956→        {transactions.length > 0 && (
+   957→   957→          <section className="mb-8">
+   958→   958→            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+   959→   959→              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Макс. доход" value={isBalanceHidden ? '•••' : formatCurrency(stats.maxIncome)} />
+   960→   960→              <StatCard icon={<TrendingDown className="w-4 h-4" />} label="Макс. расход" value={isBalanceHidden ? '•••' : formatCurrency(stats.maxExpense)} />
+   961→   961→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний доход" value={isBalanceHidden ? '•••' : formatCurrency(stats.avgIncome)} />
+   962→   962→              <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Средний расход" value={isBalanceHidden ? '•••' : formatCurrency(stats.avgExpense)} />
+   963→   963→            </div>
+   964→   964→          </section>
+   965→   965→        )}
+   966→   966→
+   967→   967→        {/* Daily activity chart */}
+   968→   968→        {Object.keys(stats.dailyData).length > 1 && (
+   969→   969→          <section className="mb-8 border-2 border-border p-4">
+   970→   970→            <h3 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-3">Активность по дням</h3>
+   971→   971→            <div className="flex items-end gap-[2px] h-24">
+   972→   972→              {chartDays.map(day => {
+   973→   973→                const d = stats.dailyData[day]
+   974→   974→                if (!d) return <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0" />
+   975→   975→                const maxVal = stats.maxDaily || 1
+   976→   976→                const incH = (d.income / maxVal) * 100
+   977→   977→                const expH = (d.expense / maxVal) * 100
+   978→   978→                return (
+   979→   979→                  <div key={day} className="flex-1 flex flex-col justify-end gap-[1px] min-w-0">
+   980→   980→                    {d.income > 0 && <div className="bg-foreground/60 w-full" style={{ height: `${incH}%` }} title={`Доход: ${formatCurrency(d.income)}`} />}
+   981→   981→                    {d.expense > 0 && <div className="bg-brand/70 w-full" style={{ height: `${expH}%` }} title={`Расход: ${formatCurrency(d.expense)}`} />}
+   982→   982→                  </div>
+   983→   983→                )
+   984→   984→              })}
+   985→   985→            </div>
+   986→   986→            <div className="flex items-center gap-4 mt-2">
+   987→   987→              <div className="flex items-center gap-1">
+   988→   988→                <div className="w-3 h-2 bg-foreground/60" />
+   989→   989→                <span className="text-[10px] text-muted-foreground">Доходы</span>
+   990→   990→              </div>
+   991→   991→              <div className="flex items-center gap-1">
+   992→   992→                <div className="w-3 h-2 bg-brand/70" />
+   993→   993→                <span className="text-[10px] text-muted-foreground">Расходы</span>
+   994→   994→              </div>
+   995→   995→            </div>
+   996→   996→          </section>
+   997→   997→        )}
+   998→   998→
+   999→   999→        {/* Expense categories */}
+  1000→  1000→        {stats.totalExpense > 0 && !isBalanceHidden && Object.keys(stats.categoryBreakdown).length > 0 && (
+  1001→  1001→          <section className="mb-8 border-2 border-border p-4 space-y-3">
+  1002→  1002→            <h3 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Категории расходов</h3>
+  1003→  1003→            {Object.entries(stats.categoryBreakdown)
+  1004→  1004→              .sort(([, a], [, b]) => b - a)
+  1005→  1005→              .map(([cat, amount]) => {
+  1006→  1006→                const catObj = EXPENSE_CATEGORIES.find(c => c.value === cat)
+  1007→  1007→                const pct = stats.totalExpense > 0 ? (amount / stats.totalExpense) * 100 : 0
+  1008→  1008→                return (
+  1009→  1009→                  <div key={cat} className="space-y-1">
+  1010→  1010→                    <div className="flex items-center justify-between text-sm">
+  1011→  1011→                      <span className="flex items-center gap-2">
+  1012→  1012→                        <span>{catObj?.icon}</span>
+  1013→  1013→                        <span className="font-medium">{catObj?.label || cat}</span>
+  1014→  1014→                      </span>
+  1015→  1015→                      <span className="font-black">{formatCurrency(amount)}</span>
+  1016→  1016→                    </div>
+  1017→  1017→                    <div className="h-1.5 bg-secondary">
+  1018→  1018→                      <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
+  1019→  1019→                    </div>
+  1020→  1020→                  </div>
+  1021→  1021→                )
+  1022→  1022→              })}
+  1023→  1023→          </section>
+  1024→  1024→        )}
+  1025→  1025→
+  1026→  1026→        {/* Transaction list */}
+  1027→  1027→        <section>
+  1028→  1028→          <div className="flex items-center justify-between mb-4">
+  1029→  1029→            <div className="flex items-center gap-2">
+  1030→  1030→              <h2 className="font-black text-lg uppercase tracking-tighter">Транзакции</h2>
+  1031→  1031→              <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+  1032→  1032→                {filteredTransactions.length} {pluralize(filteredTransactions.length)}
+  1033→  1033→              </span>
+  1034→  1034→            </div>
+  1035→  1035→          </div>
+  1036→  1036→
+  1037→  1037→          <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all' | 'income' | 'expense')} className="mb-4">
+  1038→  1038→            <TabsList className="w-full">
+  1039→  1039→              <TabsTrigger value="all" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Все</TabsTrigger>
+  1040→  1040→              <TabsTrigger value="income" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Доходы</TabsTrigger>
+  1041→  1041→              <TabsTrigger value="expense" className="flex-1 text-[10px] uppercase tracking-[0.15em]">Расходы</TabsTrigger>
+  1042→  1042→            </TabsList>
+  1043→  1043→          </Tabs>
+  1044→  1044→
+  1045→  1045→          {/* Loading skeleton */}
+  1046→  1046→          {isLoading && (
+  1047→  1047→            <div className="space-y-3">
+  1048→  1048→              {Array.from({ length: 5 }).map((_, i) => (
+  1049→  1049→                <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
+  1050→  1050→                  <div className="w-10 h-10 bg-secondary" />
+  1051→  1051→                  <div className="flex-1 space-y-2">
+  1052→  1052→                    <div className="h-4 bg-secondary w-3/4" />
+  1053→  1053→                    <div className="h-3 bg-secondary w-1/2" />
+  1054→  1054→                  </div>
+  1055→  1055→                  <div className="h-4 bg-secondary w-20" />
+  1056→  1056→                </div>
+  1057→  1057→              ))}
+  1058→  1058→            </div>
+  1059→  1059→          )}
+  1060→  1060→
+  1061→  1061→          {/* Empty state */}
+  1062→  1062→          {!isLoading && filteredTransactions.length === 0 && (
+  1063→  1063→            <div className="text-center py-16 space-y-3">
+  1064→  1064→              <Wallet className="w-12 h-12 mx-auto text-muted-foreground" />
+  1065→  1065→              <p className="font-black text-lg uppercase tracking-tighter">Нет транзакций</p>
+  1066→  1066→              <p className="text-sm text-muted-foreground">
+  1067→  1067→                {searchQuery ? 'Попробуйте изменить запрос' : 'Добавьте первую транзакцию'}
+  1068→  1068→              </p>
+  1069→  1069→              {!searchQuery && (
+  1070→  1070→                <button
+  1071→  1071→                  onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
+  1072→  1072→                  className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 font-black uppercase tracking-[0.15em] text-sm hover:bg-brand-light transition-colors"
+  1073→  1073→                >
+  1074→  1074→                  <Plus className="w-4 h-4" /> Добавить
+  1075→  1075→                </button>
+  1076→  1076→              )}
+  1077→  1077→            </div>
+  1078→  1078→          )}
+  1079→  1079→
+  1080→  1080→          {/* Grouped transactions */}
+  1081→  1081→          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
+  1082→  1082→            <div key={dateKey}>
+  1083→  1083→              <div className="sticky top-[56px] z-10 bg-background/95 backdrop-blur-sm py-2 border-b border-border">
+  1084→  1084→                <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
+  1085→  1085→                  {formatFullDate(txs[0].date)}
+  1086→  1086→                </span>
+  1087→  1087→              </div>
+  1088→  1088→              <div>
+  1089→  1089→                {txs.map(t => (
+  1090→  1090→                  <TransactionRow
+  1091→  1091→                    key={t.id}
+  1092→  1092→                    t={t}
+  1093→  1093→                    isBalanceHidden={isBalanceHidden}
+  1094→  1094→                    onEdit={openEditDialog}
+  1095→  1095→                    onDelete={setDeleteTarget}
+  1096→  1096→                  />
+  1097→  1097→                ))}
+  1098→  1098→              </div>
+  1099→  1099→            </div>
+  1100→  1100→          ))}
+  1101→  1101→        </section>
+  1102→  1102→      </main>
+  1103→  1103→
+  1104→  1104→      {/* FAB (mobile) */}
+  1105→  1105→      <button
+  1106→  1106→        onClick={() => { resetAddForm(); setIsDialogOpen(true) }}
+  1107→  1107→        className="fixed bottom-6 right-6 h-14 w-14 bg-brand text-white flex items-center justify-center shadow-lg hover:bg-brand-light transition-colors sm:hidden z-30"
+  1108→  1108→      >
+  1109→  1109→        <Plus className="w-6 h-6" />
+  1110→  1110→      </button>
+  1111→  1111→
+  1112→  1112→      {/* Scroll to top */}
+  1113→  1113→      {showScrollTop && (
+  1114→  1114→        <button
+  1115→  1115→          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+  1116→  1116→          className="fixed bottom-6 left-6 p-3 border-2 border-border hover:border-foreground bg-background z-30 transition-colors"
+  1117→  1117→        >
+  1118→  1118→          <ChevronLeft className="w-4 h-4 rotate-90" />
+  1119→  1119→        </button>
+  1120→  1120→      )}
+  1121→  1121→
+  1122→  1122→      {/* Add Dialog */}
+  1123→  1123→      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  1124→  1124→        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+  1125→  1125→          <DialogHeader>
+  1126→  1126→            <DialogTitle className="font-black uppercase tracking-tighter">Новая транзакция</DialogTitle>
+  1127→  1127→          </DialogHeader>
+  1128→  1128→          <TransactionForm
+  1129→  1129→            type={formType} setType={setFormType}
+  1130→  1130→            amount={formAmount} setAmount={setFormAmount}
+  1131→  1131→            description={formDescription} setDescription={setFormDescription}
+  1132→  1132→            date={formDate} setDate={setFormDate}
+  1133→  1133→            taxRate={formTaxRate} setTaxRate={setFormTaxRate}
+  1134→  1134→            platforms={formPlatforms} togglePlatform={togglePlatform}
+  1135→  1135→            setPlatformReviewCount={setPlatformReviewCount}
+  1136→  1136→            category={formCategory} setCategory={setFormCategory}
+  1137→  1137→            isSubmitting={isSubmitting}
+  1138→  1138→            onSubmit={handleAddSubmit}
+  1139→  1139→            submitLabel="Добавить"
+  1140→  1140→          />
+  1141→  1141→        </DialogContent>
+  1142→  1142→      </Dialog>
+  1143→  1143→
+  1144→  1144→      {/* Edit Dialog */}
+  1145→  1145→      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+  1146→  1146→        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+  1147→  1147→          <DialogHeader>
+  1148→  1148→            <DialogTitle className="font-black uppercase tracking-tighter">Редактировать</DialogTitle>
+  1149→  1149→          </DialogHeader>
+  1150→  1150→          <TransactionForm
+  1151→  1151→            type={editType} setType={(v) => { setEditType(v); if (v === 'expense') { setEditTaxRate('none'); setEditPlatforms(PLATFORMS.map(p => ({ name: p.name, reviewCount: 0 }))) } }}
+  1152→  1152→            amount={editAmount} setAmount={setEditAmount}
+  1153→  1153→            description={editDescription} setDescription={setEditDescription}
+  1154→  1154→            date={editDate} setDate={setEditDate}
+  1155→  1155→            taxRate={editTaxRate} setTaxRate={setEditTaxRate}
+  1156→  1156→            platforms={editPlatforms} togglePlatform={toggleEditPlatform}
+  1157→  1157→            setPlatformReviewCount={setEditPlatformReviewCount}
+  1158→  1158→            category={editCategory} setCategory={setEditCategory}
+  1159→  1159→            isSubmitting={isSubmitting}
+  1160→  1160→            onSubmit={handleEditSubmit}
+  1161→  1161→            submitLabel="Сохранить"
+  1162→  1162→          />
+  1163→  1163→        </DialogContent>
+  1164→  1164→      </Dialog>
+  1165→  1165→
+  1166→  1166→      {/* Delete Alert Dialog */}
+  1167→  1167→      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+  1168→  1168→        <AlertDialogContent>
+  1169→  1169→          <AlertDialogHeader>
+  1170→  1170→            <div className="flex items-center gap-3 mb-2">
+  1171→  1171→              <div className="w-10 h-10 bg-brand text-white flex items-center justify-center">
+  1172→  1172→                <ArrowUp className="w-5 h-5 rotate-45" />
+  1173→  1173→              </div>
+  1174→  1174→              <AlertDialogTitle className="font-black uppercase tracking-tighter">Удалить?</AlertDialogTitle>
+  1175→  1175→            </div>
+  1176→  1176→            <AlertDialogDescription>Это действие нельзя отменить</AlertDialogDescription>
+  1177→  1177→          </AlertDialogHeader>
+  1178→  1178→          <AlertDialogFooter>
+  1179→  1179→            <AlertDialogCancel className="font-black uppercase tracking-[0.15em]">Отмена</AlertDialogCancel>
+  1180→  1180→            <AlertDialogAction onClick={handleDelete} className="bg-brand text-white hover:bg-brand-dark font-black uppercase tracking-[0.15em]">
+  1181→  1181→              Удалить
+  1182→  1182→            </AlertDialogAction>
+  1183→  1183→          </AlertDialogFooter>
+  1184→  1184→        </AlertDialogContent>
+  1185→  1185→      </AlertDialog>
+  1186→  1186→
+  1187→  1187→      {/* slideDown animation */}
+  1188→  1188→      <style jsx>{`
+  1189→  1189→        @keyframes slideDown {
+  1190→  1190→          from { transform: translateY(-100%); opacity: 0; }
+  1191→  1191→          to { transform: translateY(0); opacity: 1; }
+  1192→  1192→        }
+  1193→  1193→      `}</style>
+  1194→  1194→    </div>
+  1195→  1195→  )
+  1196→  1196→}
+  1197→  1197→

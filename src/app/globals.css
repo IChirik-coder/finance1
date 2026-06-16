@@ -358,13 +358,27 @@ button[class*="shrink-0"]:hover {
 }
 
 .liquid-glass-btn:hover {
+  background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+  border-color: rgba(59,130,246,0.7);
   box-shadow:
-    0 12px 32px rgba(59,130,246,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+    0 8px 32px rgba(59,130,246,0.4),
+    0 0 16px rgba(59,130,246,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.3);
 }
 
 .liquid-glass-btn:active {
-  transform: scale(0.97);
+  box-shadow:
+    0 4px 12px rgba(59,130,246,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.dark .liquid-glass-btn:hover {
+  background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+  border-color: rgba(59,130,246,0.5);
+  box-shadow:
+    0 8px 32px rgba(59,130,246,0.25),
+    0 0 12px rgba(59,130,246,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 /* ─── Hero balance card ─── */
