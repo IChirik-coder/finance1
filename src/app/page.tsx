@@ -137,8 +137,8 @@ const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMa
           {`${isIncome ? '+' : '−'}${fmtCur(t.amount)}`}
         </span>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <button onClick={() => onEdit(t)} data-glass-hover className="p-1.5 rounded-lg border border-transparent"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-          <button onClick={() => onDelete(t.id)} data-glass-hover className="p-1.5 rounded-lg border border-transparent"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+          <button onClick={() => onEdit(t)} data-glass-hover className="p-1.5 rounded-lg"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+          <button onClick={() => onDelete(t.id)} data-glass-hover className="p-1.5 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
         </div>
       </div>
     </div>
@@ -170,8 +170,8 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
     <div className="space-y-5">
       {/* Type toggle */}
       <div className="flex liquid-glass rounded-2xl p-1 gap-1">
-        <button type="button" onClick={() => setType('income')} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 border border-transparent ${isIncome ? 'liquid-glass-green !rounded-xl' : 'text-muted-foreground'}`}>Доход</button>
-        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 border border-transparent ${!isIncome ? 'liquid-glass-red !rounded-xl' : 'text-muted-foreground'}`}>Расход</button>
+        <button type="button" onClick={() => setType('income')} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${isIncome ? 'liquid-glass-green !rounded-xl' : 'text-muted-foreground'}`}>Доход</button>
+        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${!isIncome ? 'liquid-glass-red !rounded-xl' : 'text-muted-foreground'}`}>Расход</button>
       </div>
       {/* Amount */}
       <div className="relative">
@@ -187,7 +187,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
             {platformsList.map(p => {
               const sel = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
               return (
-                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} data-glass-hover className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 border border-transparent ${sel ? 'liquid-glass-green !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground'}`}>
+                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} data-glass-hover className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${sel ? 'liquid-glass-green !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground'}`}>
                   <PlatformIcon name={p.name} size={16} iconMap={iconMap} /><span className="truncate">{p.name}</span>{sel && <span className="ml-auto text-[var(--income-color)]/60">✓</span>}
                 </button>
               )
@@ -224,7 +224,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
           <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Налоговый вычет</label>
           <div className="flex liquid-glass rounded-2xl p-1 gap-1">
             {(['none','4','6'] as const).map(rate => (
-              <button key={rate} type="button" onClick={() => setTaxRate(rate)} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 border border-transparent ${taxRate===rate ? (rate==='none' ? 'liquid-glass-sm !rounded-xl !bg-secondary text-foreground' : 'liquid-glass-blue !rounded-xl font-bold') : 'text-muted-foreground'}`}>
+              <button key={rate} type="button" onClick={() => setTaxRate(rate)} data-glass-hover className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${taxRate===rate ? (rate==='none' ? 'liquid-glass-sm !rounded-xl !bg-secondary text-foreground' : 'liquid-glass-blue !rounded-xl font-bold') : 'text-muted-foreground'}`}>
                 {rate==='none' ? 'Без вычета' : `${rate}%`}
               </button>
             ))}
@@ -280,6 +280,55 @@ export default function Home() {
         if (Array.isArray(p) && p.length > 0) startTransition(() => { setPlatforms(p) })
       }
     } catch {}
+
+    // Inject glass-hover styles directly into the DOM (bypasses Tailwind CSS processing)
+    if (!document.getElementById('glass-hover-styles')) {
+      const style = document.createElement('style')
+      style.id = 'glass-hover-styles'
+      style.textContent = `
+        [data-glass-hover] {
+          transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease !important;
+          cursor: pointer;
+        }
+        [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+          background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+          border-color: rgba(59,130,246,0.35) !important;
+          box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+          color: rgba(59,130,246,1) !important;
+        }
+        [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
+          transform: scale(0.97) !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+        }
+        .dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+          background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+          border-color: rgba(59,130,246,0.25) !important;
+          box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+          color: rgba(147,197,253,1) !important;
+        }
+        .liquid-glass-sm:not(.liquid-glass-btn):hover {
+          background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+          border-color: rgba(59,130,246,0.3) !important;
+          box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+          color: rgba(59,130,246,1) !important;
+        }
+        .dark .liquid-glass-sm:not(.liquid-glass-btn):hover {
+          background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+          border-color: rgba(59,130,246,0.25) !important;
+          box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+          color: rgba(147,197,253,1) !important;
+        }
+        .liquid-glass[data-glass-hover]:hover {
+          border-color: rgba(59,130,246,0.2) !important;
+          box-shadow: 0 8px 32px rgba(59,130,246,0.06), 0 0 1px rgba(59,130,246,0.2), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+        }
+        .dark .liquid-glass[data-glass-hover]:hover {
+          border-color: rgba(59,130,246,0.15) !important;
+          box-shadow: 0 8px 32px rgba(59,130,246,0.08), 0 0 1px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+        }
+      `
+      document.head.appendChild(style)
+    }
     startTransition(() => { setMounted(true) })
   }, [])
 
@@ -636,7 +685,7 @@ export default function Home() {
             </button>
             <div className="flex items-center gap-3 min-w-0">
               <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
-              {!isCurrentMonth && <button onClick={goToCurrentMonth} data-glass-hover className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full border border-transparent shrink-0">Сегодня</button>}
+              {!isCurrentMonth && <button onClick={goToCurrentMonth} data-glass-hover className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full  shrink-0">Сегодня</button>}
             </div>
             <button
               onClick={goToNextMonth}
@@ -706,9 +755,9 @@ export default function Home() {
           </div>
           <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-4">
             <TabsList className="w-full bg-secondary rounded-2xl p-1 h-10 border border-border">
-              <TabsTrigger value="all" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl border border-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground">Все</TabsTrigger>
-              <TabsTrigger value="income" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl border border-transparent data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground">Доходы</TabsTrigger>
-              <TabsTrigger value="expense" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl border border-transparent data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground">Расходы</TabsTrigger>
+              <TabsTrigger value="all" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground">Все</TabsTrigger>
+              <TabsTrigger value="income" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground">Доходы</TabsTrigger>
+              <TabsTrigger value="expense" data-glass-hover className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground">Расходы</TabsTrigger>
             </TabsList>
           </Tabs>
 

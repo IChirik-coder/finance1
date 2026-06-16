@@ -242,10 +242,10 @@
 }
 
 .liquid-glass-sm:not(.liquid-glass-btn):hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
-  border-color: rgba(59,130,246,0.25) !important;
-  box-shadow: 0 4px 20px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.4) !important;
-  color: rgba(59,130,246,0.85) !important;
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+  box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+  color: rgba(59,130,246,1) !important;
 }
 
 .liquid-glass-sm:active {
@@ -261,10 +261,10 @@
 }
 
 .dark .liquid-glass-sm:not(.liquid-glass-btn):hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.14) 0%, rgba(139,92,246,0.08) 100%) !important;
-  border-color: rgba(59,130,246,0.2) !important;
-  box-shadow: 0 4px 20px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.04) !important;
-  color: rgba(147,197,253,0.9) !important;
+  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+  box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  color: rgba(147,197,253,1) !important;
 }
 
 /* ─── Month navigation arrow (hover/dark overrides for inline-styled buttons) ─── */
@@ -303,33 +303,34 @@ button[class*="shrink-0"]:hover {
 /* ─── Interactive hover via attribute (works in Tailwind v4) ─── */
 
 [data-glass-hover] {
-  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease !important;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
   cursor: pointer;
 }
 
-[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not([data-state="active"]):hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
-  border-color: rgba(59,130,246,0.25) !important;
-  box-shadow: 0 4px 20px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.4) !important;
-  color: rgba(59,130,246,0.85) !important;
+/* ── Inactive / unselected buttons ── */
+[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+  border-color: rgba(59,130,246,0.35) !important;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+  color: rgba(59,130,246,1) !important;
 }
 
-[data-glass-hover]:active {
-  background: linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.03) 100%) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
   transform: scale(0.97) !important;
+  background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.05) 100%) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
 }
 
-.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not([data-state="active"]):hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.14) 0%, rgba(139,92,246,0.08) 100%) !important;
-  border-color: rgba(59,130,246,0.2) !important;
-  box-shadow: 0 4px 20px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.04) !important;
-  color: rgba(147,197,253,0.9) !important;
+.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.18), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  color: rgba(147,197,253,1) !important;
 }
 
-.dark [data-glass-hover]:active {
-  background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.04) 100%) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03) !important;
+.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
 }
 
 /* ─── Action button ─── */
