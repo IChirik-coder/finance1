@@ -173,6 +173,17 @@
     0 0 1px rgba(255,255,255,0.8),
     inset 0 1px 0 rgba(255,255,255,0.6);
   overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.liquid-glass[data-glass-hover]:hover {
+  border-color: rgba(59,130,246,0.2) !important;
+  box-shadow: 0 8px 32px rgba(59,130,246,0.06), 0 0 1px rgba(59,130,246,0.2), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+}
+
+.dark .liquid-glass[data-glass-hover]:hover {
+  border-color: rgba(59,130,246,0.15) !important;
+  box-shadow: 0 8px 32px rgba(59,130,246,0.08), 0 0 1px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.04) !important;
 }
 
 .liquid-glass::before {
@@ -227,7 +238,14 @@
   box-shadow:
     0 4px 16px rgba(0,0,0,0.04),
     inset 0 1px 0 rgba(255,255,255,0.5);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.15s ease;
+}
+
+.liquid-glass-sm:not(.liquid-glass-btn):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+  box-shadow: 0 4px 20px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+  color: rgba(59,130,246,0.85) !important;
 }
 
 .liquid-glass-sm:active {
@@ -240,6 +258,13 @@
   box-shadow:
     0 4px 16px rgba(0,0,0,0.3),
     inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.dark .liquid-glass-sm:not(.liquid-glass-btn):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.14) 0%, rgba(139,92,246,0.08) 100%) !important;
+  border-color: rgba(59,130,246,0.2) !important;
+  box-shadow: 0 4px 20px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  color: rgba(147,197,253,0.9) !important;
 }
 
 /* ─── Month navigation arrow (hover/dark overrides for inline-styled buttons) ─── */
@@ -275,31 +300,36 @@ button[class*="shrink-0"]:hover {
   color: rgba(147,197,253,1) !important;
 }
 
-/* ─── Interactive hover (same effect as month arrows) ─── */
+/* ─── Interactive hover via attribute (works in Tailwind v4) ─── */
 
-.interactive-hover {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+[data-glass-hover] {
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, opacity 0.3s ease !important;
   cursor: pointer;
 }
 
-.interactive-hover:hover {
-  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.25) 100%) !important;
-  backdrop-filter: blur(20px) saturate(1.5) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(1.5) !important;
-  border: 1px solid rgba(59,130,246,0.35) !important;
-  box-shadow: 0 4px 16px rgba(59,130,246,0.12), 0 1px 3px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.6) !important;
-  transform: scale(1.06);
+[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not([data-state="active"]):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+  box-shadow: 0 4px 20px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+  color: rgba(59,130,246,0.85) !important;
 }
 
-.interactive-hover:active {
-  transform: scale(0.95) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+[data-glass-hover]:active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.03) 100%) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  transform: scale(0.97) !important;
 }
 
-.dark .interactive-hover:hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
-  border: 1px solid rgba(59,130,246,0.3) !important;
-  box-shadow: 0 4px 16px rgba(59,130,246,0.2), 0 1px 3px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not([data-state="active"]):hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.14) 0%, rgba(139,92,246,0.08) 100%) !important;
+  border-color: rgba(59,130,246,0.2) !important;
+  box-shadow: 0 4px 20px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  color: rgba(147,197,253,0.9) !important;
+}
+
+.dark [data-glass-hover]:active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.04) 100%) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03) !important;
 }
 
 /* ─── Action button ─── */

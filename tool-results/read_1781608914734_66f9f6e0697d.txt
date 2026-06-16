@@ -1,0 +1,381 @@
+   530→          return { ...h, grossIncome: tx.type === 'income' ? h.grossIncome - tx.amount : h.grossIncome, expense: tx.type === 'expense' ? h.expense - tx.amount : h.expense, count: h.count - 1 }
+   531→        }
+   532→        return h
+   533→      }).filter(h => h.count > 0)
+   534→    })
+   535→    try {
+   536→      const r = await fetch(`/api/transactions?id=${id}`, {method:'DELETE'})
+   537→      if (!r.ok) throw new Error()
+   538→      toast.success('Транзакция удалена')
+   539→      await forceRefresh()
+   540→    } catch {
+   541→      toast.error('Ошибка при удалении')
+   542→      refreshData()
+   543→    }
+   544→  }
+   545→
+   546→  function goToPrevMonth() { setSelectedMonth(prev => { if (prev===1) { setSelectedYear(y=>y-1); return 12 } return prev-1 }) }
+   547→  function goToNextMonth() { setSelectedMonth(prev => { if (prev===12) { setSelectedYear(y=>y+1); return 1 } return prev+1 }) }
+   548→  function goToCurrentMonth() { const n = new Date(); setSelectedMonth(n.getMonth()+1); setSelectedYear(n.getFullYear()) }
+   549→
+   550→  const inc = transactions.filter(t => t.type==='income')
+   551→  const exp = transactions.filter(t => t.type==='expense')
+   552→  const totalIncome = inc.reduce((s,t) => s+getNet(t,feeMap),0)
+   553→  const totalGrossIncome = inc.reduce((s,t)=>s+t.amount,0)
+   554→  const totalExecutorFee = inc.reduce((s,t)=>s+getFee(t,feeMap),0)
+   555→  const totalTax = inc.reduce((s,t)=>s+getTax(t),0)
+   556→  const totalExpense = exp.reduce((s,t)=>s+t.amount,0)
+   557→  const balance = totalIncome-totalExpense
+   558→  const incomeCount = inc.length
+   559→  const expenseCount = exp.length
+   560→  const avgIncome = incomeCount?totalIncome/incomeCount:0
+   561→  const avgExpense = expenseCount?totalExpense/expenseCount:0
+   562→  const maxIncome = incomeCount?Math.max(...inc.map(t=>getNet(t,feeMap))):0
+   563→  const maxExpense = expenseCount?Math.max(...exp.map(t=>t.amount)):0
+   564→  const expenseRatio = totalIncome>0?(totalExpense/totalIncome)*100:0
+   565→  const categoryBreakdown: Record<string,number> = {}
+   566→  for (const t of exp) { if (t.category) categoryBreakdown[t.category]=(categoryBreakdown[t.category]||0)+t.amount }
+   567→  const dailyData: Record<number,{income:number;expense:number}> = {}
+   568→  for (const t of transactions) { const d=new Date(t.date).getDate(); if (!dailyData[d]) dailyData[d]={income:0,expense:0}; if (t.type==='income') dailyData[d].income+=getNet(t,feeMap); else dailyData[d].expense+=t.amount }
+   569→  const maxDaily = Math.max(...Object.values(dailyData).flatMap(d=>[d.income,d.expense]),0)
+   570→
+   571→  let filteredTransactions = transactions
+   572→  if (filterTab==='income') filteredTransactions=filteredTransactions.filter(t=>t.type==='income')
+   573→  if (filterTab==='expense') filteredTransactions=filteredTransactions.filter(t=>t.type==='expense')
+   574→  const groupedTransactions = groupByDate(filteredTransactions)
+   575→  const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth-1))
+   576→  const chartDays = Array.from({length:daysInMonth},(_,i)=>i+1)
+   577→  const isCurrentMonth = selectedMonth===now.getMonth()+1 && selectedYear===now.getFullYear()
+   578→
+   579→  return (
+   580→    <div className="min-h-screen">
+   581→      {/* ── Nav bar ── */}
+   582→      <nav className="nav-bar">
+   583→        <div className="max-w-lg mx-auto px-4 h-12 flex items-center justify-between">
+   584→          <div className="flex items-center gap-2.5">
+   585→            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center">
+   586→              <span className="text-white text-[11px] font-bold">₽</span>
+   587→            </div>
+   588→            <span className="font-semibold text-sm tracking-tight text-foreground">Финансы</span>
+   589→          </div>
+   590→          <div className="flex items-center gap-1">
+   591→            <button onClick={() => setIsHistoryOpen(true)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="История">
+   592→              <History className="w-[18px] h-[18px] text-muted-foreground" />
+   593→            </button>
+   594→            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="Тема" suppressHydrationWarning>
+   595→              {!mounted ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
+   596→            </button>
+   597→            <button onClick={() => setIsSettingsOpen(true)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="Настройки">
+   598→              <Settings className="w-[18px] h-[18px] text-muted-foreground" />
+   599→            </button>
+   600→            <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="liquid-glass-sm !px-3 !py-2 !rounded-xl !bg-primary !text-primary-foreground !border-primary/50 transition-colors" title="Добавить">
+   601→              <Plus className="w-[18px] h-[18px]" />
+   602→            </button>
+   603→          </div>
+   604→        </div>
+   605→      </nav>
+   606→
+   607→      {/* ── Main ── */}
+   608→      <main className="max-w-lg mx-auto px-4 pt-20 pb-28">
+   609→        {/* Hero */}
+   610→        <section className="mb-8 animate-fade-in-up">
+   611→          {/* Month nav */}
+   612→          <div className="flex items-center justify-between mb-6" style={{ gap: '20px' }}>
+   613→            <button
+   614→              onClick={goToPrevMonth}
+   615→              className="shrink-0 month-arrow"
+   616→              style={{
+   617→                display: 'flex',
+   618→                alignItems: 'center',
+   619→                justifyContent: 'center',
+   620→                width: '48px',
+   621→                height: '48px',
+   622→                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+   623→                backdropFilter: 'blur(20px) saturate(1.5)',
+   624→                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+   625→                border: '1px solid rgba(255,255,255,0.5)',
+   626→                borderRadius: '16px',
+   627→                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+   628→                color: 'rgba(59,130,246,0.75)',
+   629→                cursor: 'pointer',
+   630→                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+   631→                position: 'relative',
+   632→                overflow: 'hidden',
+   633→              }}
+   634→            >
+   635→              <ChevronLeft className="w-5 h-5" />
+   636→            </button>
+   637→            <div className="flex items-center gap-3 min-w-0">
+   638→              <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
+   639→              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full interactive-hover shrink-0">Сегодня</button>}
+   640→            </div>
+   641→            <button
+   642→              onClick={goToNextMonth}
+   643→              className="shrink-0 month-arrow"
+   644→              style={{
+   645→                display: 'flex',
+   646→                alignItems: 'center',
+   647→                justifyContent: 'center',
+   648→                width: '48px',
+   649→                height: '48px',
+   650→                background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+   651→                backdropFilter: 'blur(20px) saturate(1.5)',
+   652→                WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+   653→                border: '1px solid rgba(255,255,255,0.5)',
+   654→                borderRadius: '16px',
+   655→                boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)',
+   656→                color: 'rgba(59,130,246,0.75)',
+   657→                cursor: 'pointer',
+   658→                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+   659→                position: 'relative',
+   660→                overflow: 'hidden',
+   661→              }}
+   662→            >
+   663→              <ChevronRight className="w-5 h-5" />
+   664→            </button>
+   665→          </div>
+   666→
+   667→          {/* Balance card */}
+   668→          <div className="liquid-glass-hero rounded-3xl p-6 mb-5">
+   669→            <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Баланс</span>
+   670→            <div className="font-bold text-5xl sm:text-6xl tracking-tight tabular-nums text-gradient-blue mt-1">
+   671→              {fmtCur(balance)}
+   672→            </div>
+   673→          </div>
+   674→
+   675→          {/* Income / Expense */}
+   676→          <div className="grid grid-cols-2 gap-3 mb-5">
+   677→            <div className="liquid-glass-green rounded-2xl p-4">
+   678→              <div className="flex items-center gap-2.5 mb-2">
+   679→                <div className="w-8 h-8 rounded-xl bg-[var(--income-bg)] flex items-center justify-center"><ArrowUpRight className="w-4 h-4 text-[var(--income-color)]" /></div>
+   680→                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Доходы</span>
+   681→              </div>
+   682→              <div className="font-semibold text-lg tabular-nums text-[var(--income-color)]">{fmtCur(totalIncome)}</div>
+   683→              {totalGrossIncome !== totalIncome && <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">Гросс {fmtCur(totalGrossIncome)}{totalTax>0&&` · Налог ${fmtCur(totalTax)}`}{totalExecutorFee>0&&` · Исполнители ${fmtCur(totalExecutorFee)}`}</div>}
+   684→            </div>
+   685→            <div className="liquid-glass-red rounded-2xl p-4">
+   686→              <div className="flex items-center gap-2.5 mb-2">
+   687→                <div className="w-8 h-8 rounded-xl bg-[var(--expense-bg)] flex items-center justify-center"><ArrowDownRight className="w-4 h-4 text-[var(--expense-color)]" /></div>
+   688→                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Расходы</span>
+   689→              </div>
+   690→              <div className="font-semibold text-lg tabular-nums text-[var(--expense-color)]">{fmtCur(totalExpense)}</div>
+   691→            </div>
+   692→          </div>
+   693→
+   694→        </section>
+   695→
+   696→        {/* Section divider */}
+   697→        <div className="section-divider" />
+   698→
+   699→        {/* Transactions */}
+   700→        <section className="animate-fade-in-up" style={{animationDelay:'0.25s'}}>
+   701→          <div className="flex items-center justify-between mb-4">
+   702→            <div className="flex items-center gap-2">
+   703→              <h2 className="font-semibold text-base tracking-tight text-foreground">Транзакции</h2>
+   704→              <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full">{filteredTransactions.length} {pluralize(filteredTransactions.length)}</span>
+   705→            </div>
+   706→          </div>
+   707→          <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-4">
+   708→            <TabsList className="w-full bg-secondary rounded-2xl p-1 h-10 border border-border">
+   709→              <TabsTrigger value="all" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Все</TabsTrigger>
+   710→              <TabsTrigger value="income" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Доходы</TabsTrigger>
+   711→              <TabsTrigger value="expense" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Расходы</TabsTrigger>
+   712→            </TabsList>
+   713→          </Tabs>
+   714→
+   715→          {isLoading && <div className="space-y-3">{Array.from({length:5}).map((_,i)=>(<div key={i} className="flex items-center gap-3 py-3.5 px-3 animate-pulse"><div className="w-10 h-10 bg-secondary rounded-xl" /><div className="flex-1 space-y-2"><div className="h-4 bg-secondary rounded-lg w-3/4" /><div className="h-3 bg-secondary rounded-lg w-1/2" /></div><div className="h-4 bg-secondary rounded-lg w-20" /></div>))}</div>}
+   716→
+   717→          {!isLoading && filteredTransactions.length === 0 && (
+   718→            <div className="text-center py-16 space-y-4">
+   719→              <div className="w-16 h-16 mx-auto rounded-2xl bg-secondary flex items-center justify-center"><Wallet className="w-7 h-7 text-muted-foreground/50" /></div>
+   720→              <p className="font-semibold text-base text-foreground/60">Нет транзакций</p>
+   721→              <p className="text-sm text-muted-foreground">Добавьте первую транзакцию</p>
+   722→              <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="inline-flex items-center gap-2 liquid-glass-btn px-5 py-2.5 font-semibold text-sm rounded-2xl"><Plus className="w-4 h-4" /> Добавить</button>
+   723→            </div>
+   724→          )}
+   725→
+   726→          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
+   727→            <div key={dateKey}>
+   728→              <div className="sticky top-[60px] z-10 py-2"><span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">{fmtFullDate(txs[0].date)}</span></div>
+   729→              <div>{txs.map(t => <TransactionRow key={t.id} t={t} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}</div>
+   730→            </div>
+   731→          ))}
+   732→        </section>
+   733→      </main>
+   734→
+   735→      {/* FAB */}
+   736→      <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="fixed bottom-6 right-6 h-14 w-14 liquid-glass-btn flex items-center justify-center shadow-lg sm:hidden z-30 rounded-2xl"><Plus className="w-6 h-6" /></button>
+   737→
+   738→      {/* Scroll-to-top */}
+   739→      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 liquid-glass-sm interactive-hover rounded-2xl z-30"><ChevronLeft className="w-4 h-4 rotate-90 text-muted-foreground" /></button>}
+   740→
+   741→      {/* Add Dialog */}
+   742→      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+   743→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   744→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Новая транзакция</DialogTitle></DialogHeader>
+   745→          <TransactionForm type={formType} setType={setFormType} amount={formAmount} setAmount={setFormAmount} description={formDescription} setDescription={setFormDescription} date={formDate} setDate={setFormDate} taxRate={formTaxRate} setTaxRate={setFormTaxRate} platforms={formPlatforms} togglePlatform={togglePlatform} setPlatformReviewCount={setPlatformReviewCount} category={formCategory} setCategory={setFormCategory} isSubmitting={isSubmitting} onSubmit={handleAddSubmit} submitLabel="Добавить" platformsList={platforms.filter(p => p.active !== false)} feeMap={feeMap} iconMap={iconMap} />
+   746→        </DialogContent>
+   747→      </Dialog>
+   748→
+   749→      {/* Edit Dialog */}
+   750→      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+   751→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   752→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Редактировать</DialogTitle></DialogHeader>
+   753→          <TransactionForm type={editType} setType={(v) => { setEditType(v); if (v==='expense') { setEditTaxRate('none'); setEditPlatforms(platforms.filter(p=>p.active!==false).map(p=>({name:p.name,reviewCount:0}))) } }} amount={editAmount} setAmount={setEditAmount} description={editDescription} setDescription={setEditDescription} date={editDate} setDate={setEditDate} taxRate={editTaxRate} setTaxRate={setEditTaxRate} platforms={editPlatforms} togglePlatform={toggleEditPlatform} setPlatformReviewCount={setEditPlatformReviewCount} category={editCategory} setCategory={setEditCategory} isSubmitting={isSubmitting} onSubmit={handleEditSubmit} submitLabel="Сохранить" platformsList={platforms.filter(p => p.active !== false)} feeMap={feeMap} iconMap={iconMap} />
+   754→        </DialogContent>
+   755→      </Dialog>
+   756→
+   757→      {/* Delete Dialog */}
+   758→      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+   759→        <AlertDialogContent className="liquid-glass-dialog rounded-3xl">
+   760→          <AlertDialogHeader>
+   761→            <div className="flex items-center gap-3 mb-1">
+   762→              <div className="w-10 h-10 rounded-2xl bg-[var(--expense-bg)] flex items-center justify-center"><Trash2 className="w-5 h-5 text-[var(--expense-color)]" /></div>
+   763→              <AlertDialogTitle className="font-semibold tracking-tight text-foreground">Удалить?</AlertDialogTitle>
+   764→            </div>
+   765→            <AlertDialogDescription className="text-muted-foreground">Это действие нельзя отменить</AlertDialogDescription>
+   766→          </AlertDialogHeader>
+   767→          <AlertDialogFooter className="gap-2">
+   768→            <AlertDialogCancel className="font-semibold rounded-2xl bg-secondary text-foreground/60 hover:bg-secondary/80 hover:text-foreground">Отмена</AlertDialogCancel>
+   769→            <AlertDialogAction onClick={handleDelete} className="bg-[var(--expense-color)] text-white hover:bg-[var(--expense-color)]/80 font-semibold rounded-2xl">Удалить</AlertDialogAction>
+   770→          </AlertDialogFooter>
+   771→        </AlertDialogContent>
+   772→      </AlertDialog>
+   773→
+   774→      {/* Settings Dialog */}
+   775→      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+   776→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   777→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">Настройки площадок</DialogTitle></DialogHeader>
+   778→          <div className="space-y-4">
+   779→            <p className="text-xs text-muted-foreground">Управляйте ценами за отзыв на каждой площадке. Изменения сохраняются автоматически.</p>
+   780→            <div className="space-y-2">
+   781→              {platforms.map((p, idx) => {
+   782→                const isActive = p.active !== false
+   783→                const isDragging = dragIdx === idx
+   784→                const isDragOver = dragOverIdx === idx
+   785→                return (
+   786→                <div
+   787→                  key={p.name}
+   788→                  draggable
+   789→                  onDragStart={() => setDragIdx(idx)}
+   790→                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx) }}
+   791→                  onDragLeave={() => { if (dragOverIdx === idx) setDragOverIdx(null) }}
+   792→                  onDrop={() => { if (dragIdx !== null && dragIdx !== idx) reorderPlatforms(dragIdx, idx); setDragIdx(null); setDragOverIdx(null) }}
+   793→                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+   794→                  className={`flex items-center gap-2 rounded-2xl p-3 transition-all duration-200 ${
+   795→                    isActive ? 'liquid-glass' : 'liquid-glass !opacity-50 !bg-secondary/30'
+   796→                  } ${isDragging ? '!opacity-40 scale-[0.98]' : ''} ${isDragOver && !isDragging ? '!ring-2 !ring-primary/40 !bg-primary/5' : ''}`}
+   797→                  style={{ cursor: 'grab' }}
+   798→                >
+   799→                  <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" style={{ cursor: 'grab' }} />
+   800→                  {p.icon && <PlatformIcon name={p.name} size={24} iconMap={iconMap} />}
+   801→                  {!p.icon && <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">{p.name[0]}</div>}
+   802→                  <span className={`text-sm font-medium flex-1 truncate ${isActive ? 'text-foreground/70' : 'text-muted-foreground line-through'}`}>{p.name}</span>
+   803→                  {isActive && <div className="liquid-stepper" onClick={e => e.stopPropagation()}>
+   804→                    <button onClick={() => updatePlatformFee(p.name, Math.max(1, p.fee - 25))} className="liquid-stepper-btn"><MinusCircle /></button>
+   805→                    <input type="number" min="1" value={p.fee} onChange={e => updatePlatformFee(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
+   806→                    <button onClick={() => updatePlatformFee(p.name, p.fee + 25)} className="liquid-stepper-btn"><PlusCircle /></button>
+   807→                  </div>}
+   808→                  {isActive && <span className="text-[11px] text-muted-foreground font-medium">₽/отзыв</span>}
+   809→                  {isActive && <button onClick={() => setPlatformDeleteTarget(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить площадку"><MinusCircle className="w-4 h-4" /></button>}
+   810→                  {!isActive && <button onClick={() => restorePlatform(p.name)} className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-xl hover:bg-primary/10">Восстановить</button>}
+   811→                  {!isActive && <button onClick={() => removePlatform(p.name)} className="p-1.5 rounded-xl hover:bg-[var(--expense-bg)] text-muted-foreground hover:text-[var(--expense-color)] transition-colors" title="Удалить навсегда"><Trash2 className="w-3.5 h-3.5" /></button>}
+   812→                </div>
+   813→                )
+   814→              })}
+   815→            </div>
+   816→            <div className="liquid-glass rounded-2xl p-4 space-y-3">
+   817→              <div className="flex items-center gap-2"><PlusCircle className="w-4 h-4 text-muted-foreground" /><span className="text-[11px] font-medium text-muted-foreground tracking-wide">Добавить площадку</span></div>
+   818→              <div className="flex items-center gap-2">
+   819→                <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder="Название площадки" className="h-9 text-sm rounded-xl liquid-glass-input flex-1 text-foreground placeholder:text-muted-foreground/50" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   820→                <div className="liquid-stepper">
+   821→                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String(Math.max(1, (parseInt(newPlatformFee)||0) - 25)))}><MinusCircle /></button>
+   822→                  <input type="number" min="1" value={newPlatformFee} onChange={e => setNewPlatformFee(e.target.value)} className="liquid-stepper-value text-foreground" placeholder="₽" onKeyDown={e => { if (e.key==='Enter') addPlatform() }} />
+   823→                  <button type="button" className="liquid-stepper-btn" onClick={() => setNewPlatformFee(String((parseInt(newPlatformFee)||0) + 25))}><PlusCircle /></button>
+   824→                </div>
+   825→                <Button onClick={addPlatform} className="h-9 px-4 liquid-glass-btn font-semibold rounded-xl text-[12px]"><Plus className="w-3.5 h-3.5 mr-1" /> Добавить</Button>
+   826→              </div>
+   827→            </div>
+   828→          </div>
+   829→        </DialogContent>
+   830→      </Dialog>
+   831→
+   832→      {/* Platform Delete Dialog */}
+   833→      <AlertDialog open={!!platformDeleteTarget} onOpenChange={() => setPlatformDeleteTarget(null)}>
+   834→        <AlertDialogContent className="liquid-glass-dialog rounded-3xl">
+   835→          <AlertDialogHeader>
+   836→            <div className="flex items-center gap-3 mb-1">
+   837→              <div className="w-10 h-10 rounded-2xl bg-[var(--expense-bg)] flex items-center justify-center"><MinusCircle className="w-5 h-5 text-[var(--expense-color)]" /></div>
+   838→              <AlertDialogTitle className="font-semibold tracking-tight text-foreground">Удалить площадку?</AlertDialogTitle>
+   839→            </div>
+   840→            <AlertDialogDescription className="text-muted-foreground">Площадка будет скрыта из списка. Вы сможете восстановить её позже или удалить навсегда.</AlertDialogDescription>
+   841→          </AlertDialogHeader>
+   842→          <AlertDialogFooter className="gap-2">
+   843→            <AlertDialogCancel className="font-semibold rounded-2xl bg-secondary text-foreground/60 hover:bg-secondary/80 hover:text-foreground">Отмена</AlertDialogCancel>
+   844→            <AlertDialogAction onClick={() => platformDeleteTarget && deactivatePlatform(platformDeleteTarget)} className="bg-[var(--expense-color)] text-white hover:bg-[var(--expense-color)]/80 font-semibold rounded-2xl">Удалить</AlertDialogAction>
+   845→            <AlertDialogAction onClick={() => platformDeleteTarget && removePlatform(platformDeleteTarget)} className="bg-destructive text-white hover:bg-destructive/80 font-semibold rounded-2xl">Удалить навсегда</AlertDialogAction>
+   846→          </AlertDialogFooter>
+   847→        </AlertDialogContent>
+   848→      </AlertDialog>
+   849→
+   850→      {/* History Dialog */}
+   851→      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+   852→        <DialogContent className="liquid-glass-dialog sm:max-w-md max-h-[85vh] overflow-y-auto rounded-3xl">
+   853→          <DialogHeader><DialogTitle className="font-semibold text-base tracking-tight text-foreground">История по месяцам</DialogTitle></DialogHeader>
+   854→          {monthHistory.length === 0 ? (
+   855→            <div className="text-center py-12 space-y-3">
+   856→              <div className="w-14 h-14 mx-auto rounded-2xl bg-secondary flex items-center justify-center"><BarChart3 className="w-6 h-6 text-muted-foreground/50" /></div>
+   857→              <p className="text-sm text-muted-foreground">Пока нет данных</p>
+   858→            </div>
+   859→          ) : (
+   860→            <div className="space-y-2">
+   861→              {monthHistory.map(h => {
+   862→                // Calculate net income: gross - tax - executor fees
+   863→                let netIncome = h.grossIncome
+   864→                netIncome -= h.tax
+   865→                for (const [name, data] of Object.entries(h.platformFees)) {
+   866→                  netIncome -= (feeMap[name] || 0) * data.reviewCount
+   867→                }
+   868→                const net = netIncome - h.expense
+   869→                const isSelected = h.month === selectedMonth && h.year === selectedYear
+   870→                const maxVal = Math.max(...monthHistory.map(m => {
+   871→                  let ni = m.grossIncome - m.tax
+   872→                  for (const [n, d] of Object.entries(m.platformFees)) ni -= (feeMap[n] || 0) * d.reviewCount
+   873→                  return Math.max(ni, m.expense)
+   874→                }), 1)
+   875→                return (
+   876→                  <button
+   877→                    key={`${h.year}-${h.month}`}
+   878→                    onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year); setIsHistoryOpen(false) }}
+   879→                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'interactive-hover'}`}
+   880→                  >
+   881→                    <div className="flex items-center justify-between mb-2">
+   882→                      <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>
+   883→                      <div className="flex items-center gap-3">
+   884→                        <span className="text-[11px] font-medium tabular-nums text-[var(--income-color)]">+{fmtCur(netIncome)}</span>
+   885→                        <span className="text-[11px] font-medium tabular-nums text-[var(--expense-color)]">−{fmtCur(h.expense)}</span>
+   886→                      </div>
+   887→                    </div>
+   888→                    <div className="flex items-center gap-1.5 h-3">
+   889→                      <div className="flex-1 flex items-center h-full">
+   890→                        <div className="bg-[var(--income-color)]/40 h-full rounded-l-md transition-all duration-500" style={{width: `${(netIncome / maxVal) * 100}%`, minWidth: netIncome > 0 ? '4px' : '0'}} />
+   891→                      </div>
+   892→                      <div className="flex-1 flex items-center justify-end h-full">
+   893→                        <div className="bg-[var(--expense-color)]/40 h-full rounded-r-md transition-all duration-500" style={{width: `${(h.expense / maxVal) * 100}%`, minWidth: h.expense > 0 ? '4px' : '0'}} />
+   894→                      </div>
+   895→                    </div>
+   896→                    <div className="flex items-center justify-between mt-1.5">
+   897→                      <span className="text-[10px] text-muted-foreground tabular-nums">{h.count} {h.count === 1 ? 'запись' : h.count < 5 ? 'записи' : 'записей'}</span>
+   898→                      <span className={`text-[11px] font-semibold tabular-nums ${net >= 0 ? 'text-gradient-blue' : 'text-[var(--expense-color)]'}`}>{net >= 0 ? '+' : ''}{fmtCur(net)}</span>
+   899→                    </div>
+   900→                  </button>
+   901→                )
+   902→              })}
+   903→            </div>
+   904→          )}
+   905→        </DialogContent>
+   906→      </Dialog>
+   907→    </div>
+   908→  )
+   909→}
+   910→
