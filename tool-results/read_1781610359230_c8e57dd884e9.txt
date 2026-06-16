@@ -1,0 +1,853 @@
+     1→     1→@import "tailwindcss";
+     2→     2→@import "tw-animate-css";
+     3→     3→
+     4→     4→@custom-variant dark (&:is(.dark *));
+     5→     5→
+     6→     6→@theme inline {
+     7→     7→  --color-background: var(--background);
+     8→     8→  --color-foreground: var(--foreground);
+     9→     9→  --color-brand: var(--brand);
+    10→    10→  --color-brand-light: var(--brand-light);
+    11→    11→  --color-brand-dark: var(--brand-dark);
+    12→    12→  --font-sans: var(--font-sans);
+    13→    13→  --font-mono: var(--font-mono);
+    14→    14→  --font-display: var(--font-sans);
+    15→    15→  --color-sidebar-ring: var(--sidebar-ring);
+    16→    16→  --color-sidebar-border: var(--sidebar-border);
+    17→    17→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    18→    18→  --color-sidebar-accent: var(--sidebar-accent);
+    19→    19→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    20→    20→  --color-sidebar-primary: var(--sidebar-primary);
+    21→    21→  --color-sidebar-foreground: var(--sidebar-foreground);
+    22→    22→  --color-sidebar: var(--sidebar);
+    23→    23→  --color-chart-5: var(--chart-5);
+    24→    24→  --color-chart-4: var(--chart-4);
+    25→    25→  --color-chart-3: var(--chart-3);
+    26→    26→  --color-chart-2: var(--chart-2);
+    27→    27→  --color-chart-1: var(--chart-1);
+    28→    28→  --color-ring: var(--ring);
+    29→    29→  --color-input: var(--input);
+    30→    30→  --color-border: var(--border);
+    31→    31→  --color-destructive: var(--destructive);
+    32→    32→  --color-accent-foreground: var(--accent-foreground);
+    33→    33→  --color-accent: var(--accent);
+    34→    34→  --color-muted-foreground: var(--muted-foreground);
+    35→    35→  --color-muted: var(--muted);
+    36→    36→  --color-secondary-foreground: var(--secondary-foreground);
+    37→    37→  --color-secondary: var(--secondary);
+    38→    38→  --color-primary-foreground: var(--primary-foreground);
+    39→    39→  --color-primary: var(--primary);
+    40→    40→  --color-popover-foreground: var(--popover-foreground);
+    41→    41→  --color-popover: var(--popover);
+    42→    42→  --color-card-foreground: var(--card-foreground);
+    43→    43→  --color-card: var(--card);
+    44→    44→  --radius-sm: calc(var(--radius) - 4px);
+    45→    45→  --radius-md: calc(var(--radius) - 2px);
+    46→    46→  --radius-lg: var(--radius);
+    47→    47→  --radius-xl: calc(var(--radius) + 4px);
+    48→    48→}
+    49→    49→
+    50→    50→/* ──────────────────── Light Theme ──────────────────── */
+    51→    51→
+    52→    52→:root {
+    53→    53→  --radius: 16px;
+    54→    54→
+    55→    55→  /* Brand */
+    56→    56→  --brand: #3B82F6;
+    57→    57→  --brand-light: #60A5FA;
+    58→    58→  --brand-dark: #1E40AF;
+    59→    59→
+    60→    60→  /* Light palette */
+    61→    61→  --background: #f0f2f7;
+    62→    62→  --foreground: #1a1a2e;
+    63→    63→  --card: rgba(255, 255, 255, 0.7);
+    64→    64→  --card-foreground: #1a1a2e;
+    65→    65→  --popover: rgba(255, 255, 255, 0.9);
+    66→    66→  --popover-foreground: #1a1a2e;
+    67→    67→  --primary: #3B82F6;
+    68→    68→  --primary-foreground: #FFFFFF;
+    69→    69→  --secondary: rgba(0, 0, 0, 0.04);
+    70→    70→  --secondary-foreground: #4a4a5a;
+    71→    71→  --muted: rgba(0, 0, 0, 0.04);
+    72→    72→  --muted-foreground: rgba(0, 0, 0, 0.45);
+    73→    73→  --accent: rgba(59, 130, 246, 0.1);
+    74→    74→  --accent-foreground: #2563EB;
+    75→    75→  --destructive: #EF4444;
+    76→    76→  --border: rgba(0, 0, 0, 0.08);
+    77→    77→  --input: rgba(0, 0, 0, 0.06);
+    78→    78→  --ring: rgba(59, 130, 246, 0.3);
+    79→    79→  --chart-1: #3B82F6;
+    80→    80→  --chart-2: #F97316;
+    81→    81→  --chart-3: #8B5CF6;
+    82→    82→  --chart-4: #EF4444;
+    83→    83→  --chart-5: #10B981;
+    84→    84→  --sidebar: rgba(255, 255, 255, 0.8);
+    85→    85→  --sidebar-foreground: #1a1a2e;
+    86→    86→  --sidebar-primary: #3B82F6;
+    87→    87→  --sidebar-primary-foreground: #FFFFFF;
+    88→    88→  --sidebar-accent: rgba(59, 130, 246, 0.1);
+    89→    89→  --sidebar-accent-foreground: #2563EB;
+    90→    90→  --sidebar-border: rgba(0, 0, 0, 0.06);
+    91→    91→  --sidebar-ring: rgba(59, 130, 246, 0.3);
+    92→    92→
+    93→    93→  /* Income = green, Expense = red */
+    94→    94→  --income-color: #10B981;
+    95→    95→  --income-bg: rgba(16, 185, 129, 0.1);
+    96→    96→  --expense-color: #EF4444;
+    97→    97→  --expense-bg: rgba(239, 68, 68, 0.1);
+    98→    98→}
+    99→    99→
+   100→   100→/* ──────────────────── Dark Theme ──────────────────── */
+   101→   101→
+   102→   102→.dark {
+   103→   103→  --background: #0a0a12;
+   104→   104→  --foreground: #ffffff;
+   105→   105→  --card: rgba(255, 255, 255, 0.04);
+   106→   106→  --card-foreground: #F0F0F5;
+   107→   107→  --popover: rgba(10, 10, 20, 0.9);
+   108→   108→  --popover-foreground: #F0F0F5;
+   109→   109→  --primary: #3B82F6;
+   110→   110→  --primary-foreground: #FFFFFF;
+   111→   111→  --secondary: rgba(255, 255, 255, 0.06);
+   112→   112→  --secondary-foreground: #D0D0D8;
+   113→   113→  --muted: rgba(255, 255, 255, 0.06);
+   114→   114→  --muted-foreground: rgba(255, 255, 255, 0.45);
+   115→   115→  --accent: rgba(59, 130, 246, 0.15);
+   116→   116→  --accent-foreground: #60A5FA;
+   117→   117→  --destructive: #EF4444;
+   118→   118→  --border: rgba(255, 255, 255, 0.08);
+   119→   119→  --input: rgba(255, 255, 255, 0.08);
+   120→   120→  --ring: rgba(59, 130, 246, 0.4);
+   121→   121→  --chart-1: #3B82F6;
+   122→   122→  --chart-2: #F97316;
+   123→   123→  --chart-3: #8B5CF6;
+   124→   124→  --chart-4: #EF4444;
+   125→   125→  --chart-5: #10B981;
+   126→   126→  --sidebar: rgba(10, 10, 20, 0.8);
+   127→   127→  --sidebar-foreground: #F0F0F5;
+   128→   128→  --sidebar-primary: #3B82F6;
+   129→   129→  --sidebar-primary-foreground: #FFFFFF;
+   130→   130→  --sidebar-accent: rgba(59, 130, 246, 0.15);
+   131→   131→  --sidebar-accent-foreground: #60A5FA;
+   132→   132→  --sidebar-border: rgba(255, 255, 255, 0.08);
+   133→   133→  --sidebar-ring: rgba(59, 130, 246, 0.4);
+   134→   134→
+   135→   135→  --income-color: #34D399;
+   136→   136→  --income-bg: rgba(52, 211, 153, 0.12);
+   137→   137→  --expense-color: #F87171;
+   138→   138→  --expense-bg: rgba(248, 113, 113, 0.12);
+   139→   139→}
+   140→   140→
+   141→   141→@layer base {
+   142→   142→  :root {
+   143→   143→    color-scheme: light;
+   144→   144→  }
+   145→   145→
+   146→   146→  .dark {
+   147→   147→    color-scheme: dark;
+   148→   148→  }
+   149→   149→
+   150→   150→  * {
+   151→   151→    @apply border-border outline-ring/50;
+   152→   152→  }
+   153→   153→
+   154→   154→  body {
+   155→   155→    @apply bg-background text-foreground;
+   156→   156→    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+   157→   157→    -webkit-font-smoothing: antialiased;
+   158→   158→    -moz-osx-font-smoothing: grayscale;
+   159→   159→  }
+   160→   160→}
+   161→   161→
+   162→   162→/* ──────────────────── Liquid Glass Design System ──────────────────── */
+   163→   163→
+   164→   164→.liquid-glass {
+   165→   165→  position: relative;
+   166→   166→  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%);
+   167→   167→  backdrop-filter: blur(20px) saturate(1.5);
+   168→   168→  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+   169→   169→  border: 1px solid rgba(255,255,255,0.5);
+   170→   170→  border-radius: 20px;
+   171→   171→  box-shadow:
+   172→   172→    0 8px 32px rgba(0,0,0,0.06),
+   173→   173→    0 0 1px rgba(255,255,255,0.8),
+   174→   174→    inset 0 1px 0 rgba(255,255,255,0.6);
+   175→   175→  overflow: hidden;
+   176→   176→  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+   177→   177→}
+   178→   178→
+   179→   179→.liquid-glass[data-glass-hover]:hover {
+   180→   180→  border-color: rgba(59,130,246,0.2) !important;
+   181→   181→  box-shadow: 0 8px 32px rgba(59,130,246,0.06), 0 0 1px rgba(59,130,246,0.2), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+   182→   182→}
+   183→   183→
+   184→   184→.dark .liquid-glass[data-glass-hover]:hover {
+   185→   185→  border-color: rgba(59,130,246,0.15) !important;
+   186→   186→  box-shadow: 0 8px 32px rgba(59,130,246,0.08), 0 0 1px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+   187→   187→}
+   188→   188→
+   189→   189→.liquid-glass::before {
+   190→   190→  content: '';
+   191→   191→  position: absolute;
+   192→   192→  top: 0;
+   193→   193→  left: 0;
+   194→   194→  right: 0;
+   195→   195→  height: 50%;
+   196→   196→  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
+   197→   197→  pointer-events: none;
+   198→   198→  border-radius: 20px 20px 0 0;
+   199→   199→}
+   200→   200→
+   201→   201→.liquid-glass::after {
+   202→   202→  content: '';
+   203→   203→  position: absolute;
+   204→   204→  bottom: 0;
+   205→   205→  left: 10%;
+   206→   206→  right: 10%;
+   207→   207→  height: 1px;
+   208→   208→  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+   209→   209→  pointer-events: none;
+   210→   210→}
+   211→   211→
+   212→   212→.dark .liquid-glass {
+   213→   213→  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+   214→   214→  border: 1px solid rgba(255,255,255,0.08);
+   215→   215→  box-shadow:
+   216→   216→    0 8px 32px rgba(0,0,0,0.4),
+   217→   217→    0 0 1px rgba(255,255,255,0.05),
+   218→   218→    inset 0 1px 0 rgba(255,255,255,0.06);
+   219→   219→}
+   220→   220→
+   221→   221→.dark .liquid-glass::before {
+   222→   222→  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+   223→   223→}
+   224→   224→
+   225→   225→.dark .liquid-glass::after {
+   226→   226→  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+   227→   227→}
+   228→   228→
+   229→   229→/* ─── Small elements (buttons, icons) ─── */
+   230→   230→
+   231→   231→.liquid-glass-sm {
+   232→   232→  position: relative;
+   233→   233→  background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.25) 100%);
+   234→   234→  backdrop-filter: blur(16px) saturate(1.4);
+   235→   235→  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+   236→   236→  border: 1px solid rgba(255,255,255,0.4);
+   237→   237→  border-radius: 14px;
+   238→   238→  box-shadow:
+   239→   239→    0 4px 16px rgba(0,0,0,0.04),
+   240→   240→    inset 0 1px 0 rgba(255,255,255,0.5);
+   241→   241→  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.15s ease;
+   242→   242→}
+   243→   243→
+   244→   244→.liquid-glass-sm:not(.liquid-glass-btn):hover {
+   245→   245→  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+   246→   246→  border-color: rgba(59,130,246,0.3) !important;
+   247→   247→  box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+   248→   248→  color: rgba(59,130,246,1) !important;
+   249→   249→}
+   250→   250→
+   251→   251→.liquid-glass-sm:active {
+   252→   252→  transform: scale(0.97);
+   253→   253→}
+   254→   254→
+   255→   255→.dark .liquid-glass-sm {
+   256→   256→  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+   257→   257→  border: 1px solid rgba(255,255,255,0.08);
+   258→   258→  box-shadow:
+   259→   259→    0 4px 16px rgba(0,0,0,0.3),
+   260→   260→    inset 0 1px 0 rgba(255,255,255,0.04);
+   261→   261→}
+   262→   262→
+   263→   263→.dark .liquid-glass-sm:not(.liquid-glass-btn):hover {
+   264→   264→  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+   265→   265→  border-color: rgba(59,130,246,0.25) !important;
+   266→   266→  box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+   267→   267→  color: rgba(147,197,253,1) !important;
+   268→   268→}
+   269→   269→
+   270→   270→/* ─── Month navigation arrow (hover/dark overrides for inline-styled buttons) ─── */
+   271→   271→
+   272→   272→button[class*="shrink-0"]:hover {
+   273→   273→  /* fallback — actual hover handled by CSS class below */
+   274→   274→}
+   275→   275→
+   276→   276→.month-arrow:hover {
+   277→   277→  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+   278→   278→  border-color: rgba(59,130,246,0.3) !important;
+   279→   279→  box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+   280→   280→  color: rgba(59,130,246,1) !important;
+   281→   281→  transform: scale(1.06);
+   282→   282→}
+   283→   283→
+   284→   284→.month-arrow:active {
+   285→   285→  transform: scale(0.95) !important;
+   286→   286→  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+   287→   287→}
+   288→   288→
+   289→   289→.dark .month-arrow {
+   290→   290→  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%) !important;
+   291→   291→  border: 1px solid rgba(255,255,255,0.1) !important;
+   292→   292→  box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+   293→   293→  color: rgba(147,197,253,0.8) !important;
+   294→   294→}
+   295→   295→
+   296→   296→.dark .month-arrow:hover {
+   297→   297→  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+   298→   298→  border-color: rgba(59,130,246,0.25) !important;
+   299→   299→  box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+   300→   300→  color: rgba(147,197,253,1) !important;
+   301→   301→}
+   302→   302→
+   303→   303→/* ─── Interactive hover via attribute (works in Tailwind v4) ─── */
+   304→   304→
+   305→   305→[data-glass-hover] {
+   306→   306→  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
+   307→   307→  cursor: pointer;
+   308→   308→}
+   309→   309→
+   310→   310→/* ── Inactive / unselected buttons ── */
+   311→   311→[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+   312→   312→  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+   313→   313→  border-color: rgba(59,130,246,0.35) !important;
+   314→   314→  box-shadow: 0 4px 16px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+   315→   315→  color: rgba(59,130,246,1) !important;
+   316→   316→}
+   317→   317→
+   318→   318→[data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
+   319→   319→  transform: scale(0.97) !important;
+   320→   320→  background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.05) 100%) !important;
+   321→   321→  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+   322→   322→}
+   323→   323→
+   324→   324→.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):hover {
+   325→   325→  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+   326→   326→  border-color: rgba(59,130,246,0.25) !important;
+   327→   327→  box-shadow: 0 4px 16px rgba(59,130,246,0.18), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+   328→   328→  color: rgba(147,197,253,1) !important;
+   329→   329→}
+   330→   330→
+   331→   331→.dark [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
+   332→   332→  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%) !important;
+   333→   333→  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+   334→   334→}
+   335→   335→
+   336→   336→/* ─── Action button ─── */
+   337→   337→
+   338→   338→.liquid-glass-btn {
+   339→   339→  position: relative;
+   340→   340→  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+   341→   341→  border: 1px solid rgba(59,130,246,0.5);
+   342→   342→  border-radius: 16px;
+   343→   343→  box-shadow:
+   344→   344→    0 8px 24px rgba(59,130,246,0.25),
+   345→   345→    inset 0 1px 0 rgba(255,255,255,0.2);
+   346→   346→  color: #FFFFFF;
+   347→   347→  transition: transform 0.15s ease, box-shadow 0.2s ease;
+   348→   348→  overflow: hidden;
+   349→   349→}
+   350→   350→
+   351→   351→.liquid-glass-btn::before {
+   352→   352→  content: '';
+   353→   353→  position: absolute;
+   354→   354→  top: 0;
+   355→   355→  left: 0;
+   356→   356→  right: 0;
+   357→   357→  height: 50%;
+   358→   358→  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+   359→   359→  pointer-events: none;
+   360→   360→}
+   361→   361→
+   362→   362→.liquid-glass-btn:hover {
+   363→   363→  box-shadow:
+   364→   364→    0 12px 32px rgba(59,130,246,0.35),
+   365→   365→    inset 0 1px 0 rgba(255,255,255,0.2);
+   366→   366→}
+   367→   367→
+   368→   368→.liquid-glass-btn:active {
+   369→   369→  transform: scale(0.97);
+   370→   370→}
+   371→   371→
+   372→   372→/* ─── Hero balance card ─── */
+   373→   373→
+   374→   374→.liquid-glass-hero {
+   375→   375→  position: relative;
+   376→   376→  background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.08) 100%);
+   377→   377→  backdrop-filter: blur(24px) saturate(1.6);
+   378→   378→  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+   379→   379→  border: 1px solid rgba(59,130,246,0.2);
+   380→   380→  border-radius: 24px;
+   381→   381→  box-shadow:
+   382→   382→    0 12px 40px rgba(59,130,246,0.08),
+   383→   383→    0 0 1px rgba(59,130,246,0.3),
+   384→   384→    inset 0 1px 0 rgba(255,255,255,0.5);
+   385→   385→  overflow: hidden;
+   386→   386→}
+   387→   387→
+   388→   388→.liquid-glass-hero::before {
+   389→   389→  content: '';
+   390→   390→  position: absolute;
+   391→   391→  top: 0;
+   392→   392→  left: 0;
+   393→   393→  right: 0;
+   394→   394→  height: 50%;
+   395→   395→  background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%);
+   396→   396→  pointer-events: none;
+   397→   397→  border-radius: 24px 24px 0 0;
+   398→   398→}
+   399→   399→
+   400→   400→.liquid-glass-hero::after {
+   401→   401→  content: '';
+   402→   402→  position: absolute;
+   403→   403→  bottom: 0;
+   404→   404→  left: 15%;
+   405→   405→  right: 15%;
+   406→   406→  height: 1px;
+   407→   407→  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent);
+   408→   408→  pointer-events: none;
+   409→   409→}
+   410→   410→
+   411→   411→.dark .liquid-glass-hero {
+   412→   412→  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.06) 100%);
+   413→   413→  border: 1px solid rgba(59,130,246,0.15);
+   414→   414→  box-shadow:
+   415→   415→    0 12px 40px rgba(0,0,0,0.4),
+   416→   416→    0 0 1px rgba(59,130,246,0.2),
+   417→   417→    inset 0 1px 0 rgba(255,255,255,0.04);
+   418→   418→}
+   419→   419→
+   420→   420→.dark .liquid-glass-hero::before {
+   421→   421→  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+   422→   422→}
+   423→   423→
+   424→   424→.dark .liquid-glass-hero::after {
+   425→   425→  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.15), transparent);
+   426→   426→}
+   427→   427→
+   428→   428→/* ─── Income card (green) ─── */
+   429→   429→
+   430→   430→.liquid-glass-green {
+   431→   431→  position: relative;
+   432→   432→  background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(16,185,129,0.04) 100%);
+   433→   433→  backdrop-filter: blur(20px) saturate(1.5);
+   434→   434→  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+   435→   435→  border: 1px solid rgba(16,185,129,0.2);
+   436→   436→  border-radius: 20px;
+   437→   437→  box-shadow:
+   438→   438→    0 8px 32px rgba(16,185,129,0.06),
+   439→   439→    inset 0 1px 0 rgba(255,255,255,0.4);
+   440→   440→  overflow: hidden;
+   441→   441→}
+   442→   442→
+   443→   443→.liquid-glass-green::before {
+   444→   444→  content: '';
+   445→   445→  position: absolute;
+   446→   446→  top: 0;
+   447→   447→  left: 0;
+   448→   448→  right: 0;
+   449→   449→  height: 50%;
+   450→   450→  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+   451→   451→  pointer-events: none;
+   452→   452→  border-radius: 20px 20px 0 0;
+   453→   453→}
+   454→   454→
+   455→   455→.dark .liquid-glass-green {
+   456→   456→  background: linear-gradient(135deg, rgba(52,211,153,0.1) 0%, rgba(52,211,153,0.03) 100%);
+   457→   457→  border: 1px solid rgba(52,211,153,0.15);
+   458→   458→  box-shadow:
+   459→   459→    0 8px 32px rgba(0,0,0,0.3),
+   460→   460→    inset 0 1px 0 rgba(255,255,255,0.04);
+   461→   461→}
+   462→   462→
+   463→   463→.dark .liquid-glass-green::before {
+   464→   464→  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+   465→   465→}
+   466→   466→
+   467→   467→/* ─── Expense card (red) ─── */
+   468→   468→
+   469→   469→.liquid-glass-red {
+   470→   470→  position: relative;
+   471→   471→  background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(239,68,68,0.04) 100%);
+   472→   472→  backdrop-filter: blur(20px) saturate(1.5);
+   473→   473→  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+   474→   474→  border: 1px solid rgba(239,68,68,0.2);
+   475→   475→  border-radius: 20px;
+   476→   476→  box-shadow:
+   477→   477→    0 8px 32px rgba(239,68,68,0.06),
+   478→   478→    inset 0 1px 0 rgba(255,255,255,0.4);
+   479→   479→  overflow: hidden;
+   480→   480→}
+   481→   481→
+   482→   482→.liquid-glass-red::before {
+   483→   483→  content: '';
+   484→   484→  position: absolute;
+   485→   485→  top: 0;
+   486→   486→  left: 0;
+   487→   487→  right: 0;
+   488→   488→  height: 50%;
+   489→   489→  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+   490→   490→  pointer-events: none;
+   491→   491→  border-radius: 20px 20px 0 0;
+   492→   492→}
+   493→   493→
+   494→   494→.dark .liquid-glass-red {
+   495→   495→  background: linear-gradient(135deg, rgba(248,113,113,0.1) 0%, rgba(248,113,113,0.03) 100%);
+   496→   496→  border: 1px solid rgba(248,113,113,0.15);
+   497→   497→  box-shadow:
+   498→   498→    0 8px 32px rgba(0,0,0,0.3),
+   499→   499→    inset 0 1px 0 rgba(255,255,255,0.04);
+   500→   500→}
+   501→   501→
+   502→   502→.dark .liquid-glass-red::before {
+   503→   503→  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+   504→   504→}
+   505→   505→
+   506→   506→/* ─── Blue card (tax/calculation) ─── */
+   507→   507→
+   508→   508→.liquid-glass-blue {
+   509→   509→  position: relative;
+   510→   510→  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.04) 100%);
+   511→   511→  backdrop-filter: blur(20px) saturate(1.5);
+   512→   512→  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+   513→   513→  border: 1px solid rgba(59,130,246,0.2);
+   514→   514→  border-radius: 20px;
+   515→   515→  box-shadow:
+   516→   516→    0 8px 32px rgba(59,130,246,0.06),
+   517→   517→    inset 0 1px 0 rgba(255,255,255,0.4);
+   518→   518→  overflow: hidden;
+   519→   519→}
+   520→   520→
+   521→   521→.liquid-glass-blue::before {
+   522→   522→  content: '';
+   523→   523→  position: absolute;
+   524→   524→  top: 0;
+   525→   525→  left: 0;
+   526→   526→  right: 0;
+   527→   527→  height: 50%;
+   528→   528→  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+   529→   529→  pointer-events: none;
+   530→   530→  border-radius: 20px 20px 0 0;
+   531→   531→}
+   532→   532→
+   533→   533→.dark .liquid-glass-blue {
+   534→   534→  background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.03) 100%);
+   535→   535→  border: 1px solid rgba(59,130,246,0.12);
+   536→   536→  box-shadow:
+   537→   537→    0 8px 32px rgba(0,0,0,0.3),
+   538→   538→    inset 0 1px 0 rgba(255,255,255,0.04);
+   539→   539→}
+   540→   540→
+   541→   541→.dark .liquid-glass-blue::before {
+   542→   542→  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+   543→   543→}
+   544→   544→
+   545→   545→/* ─── Form inputs ─── */
+   546→   546→
+   547→   547→/* Hide browser default number arrows */
+   548→   548→input[type="number"]::-webkit-inner-spin-button,
+   549→   549→input[type="number"]::-webkit-outer-spin-button {
+   550→   550→  -webkit-appearance: none;
+   551→   551→  margin: 0;
+   552→   552→}
+   553→   553→input[type="number"] {
+   554→   554→  -moz-appearance: textfield;
+   555→   555→}
+   556→   556→
+   557→   557→/* Stepper control: − [value] + */
+   558→   558→.liquid-stepper {
+   559→   559→  display: flex;
+   560→   560→  align-items: center;
+   561→   561→  gap: 2px;
+   562→   562→  border-radius: 14px;
+   563→   563→  overflow: hidden;
+   564→   564→}
+   565→   565→
+   566→   566→.liquid-stepper-btn {
+   567→   567→  display: flex;
+   568→   568→  align-items: center;
+   569→   569→  justify-content: center;
+   570→   570→  width: 34px;
+   571→   571→  height: 34px;
+   572→   572→  border: none;
+   573→   573→  border-radius: 12px;
+   574→   574→  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%);
+   575→   575→  backdrop-filter: blur(12px) saturate(1.4);
+   576→   576→  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+   577→   577→  box-shadow: 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5);
+   578→   578→  color: rgba(59,130,246,0.8);
+   579→   579→  cursor: pointer;
+   580→   580→  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+   581→   581→  flex-shrink: 0;
+   582→   582→}
+   583→   583→
+   584→   584→.liquid-stepper-btn:hover {
+   585→   585→  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%);
+   586→   586→  color: rgba(59,130,246,1);
+   587→   587→  box-shadow: 0 4px 16px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.4);
+   588→   588→  transform: scale(1.08);
+   589→   589→}
+   590→   590→
+   591→   591→.liquid-stepper-btn:active {
+   592→   592→  transform: scale(0.92);
+   593→   593→  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+   594→   594→}
+   595→   595→
+   596→   596→.liquid-stepper-btn svg {
+   597→   597→  width: 16px;
+   598→   598→  height: 16px;
+   599→   599→}
+   600→   600→
+   601→   601→.liquid-stepper-value {
+   602→   602→  width: 44px;
+   603→   603→  text-align: center;
+   604→   604→  font-size: 14px;
+   605→   605→  font-weight: 700;
+   606→   606→  font-variant-numeric: tabular-nums;
+   607→   607→  background: transparent;
+   608→   608→  border: none;
+   609→   609→  outline: none;
+   610→   610→  color: inherit;
+   611→   611→  padding: 0;
+   612→   612→  -moz-appearance: textfield;
+   613→   613→}
+   614→   614→.liquid-stepper-value::-webkit-inner-spin-button,
+   615→   615→.liquid-stepper-value::-webkit-outer-spin-button {
+   616→   616→  -webkit-appearance: none;
+   617→   617→}
+   618→   618→
+   619→   619→.dark .liquid-stepper-btn {
+   620→   620→  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+   621→   621→  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+   622→   622→  color: rgba(147,197,253,0.8);
+   623→   623→}
+   624→   624→
+   625→   625→.dark .liquid-stepper-btn:hover {
+   626→   626→  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%);
+   627→   627→  color: rgba(147,197,253,1);
+   628→   628→  box-shadow: 0 4px 16px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.04);
+   629→   629→}
+   630→   630→
+   631→   631→.liquid-glass-input {
+   632→   632→  background: rgba(255,255,255,0.5);
+   633→   633→  backdrop-filter: blur(12px) saturate(1.3);
+   634→   634→  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+   635→   635→  border: 1px solid rgba(0,0,0,0.08);
+   636→   636→  border-radius: 16px;
+   637→   637→  box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+   638→   638→  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+   639→   639→}
+   640→   640→
+   641→   641→.liquid-glass-input:focus-within,
+   642→   642→.liquid-glass-input:focus {
+   643→   643→  border-color: rgba(59,130,246,0.4);
+   644→   644→  box-shadow: inset 0 2px 4px rgba(0,0,0,0.03), 0 0 0 3px rgba(59,130,246,0.1);
+   645→   645→}
+   646→   646→
+   647→   647→.dark .liquid-glass-input {
+   648→   648→  background: rgba(255,255,255,0.05);
+   649→   649→  border: 1px solid rgba(255,255,255,0.08);
+   650→   650→  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+   651→   651→}
+   652→   652→
+   653→   653→.dark .liquid-glass-input:focus-within,
+   654→   654→.dark .liquid-glass-input:focus {
+   655→   655→  border-color: rgba(59,130,246,0.4);
+   656→   656→  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(59,130,246,0.1);
+   657→   657→}
+   658→   658→
+   659→   659→/* ─── Dialog / Modal overlay ─── */
+   660→   660→
+   661→   661→.liquid-glass-dialog {
+   662→   662→  background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.7) 100%) !important;
+   663→   663→  backdrop-filter: blur(40px) saturate(1.6) !important;
+   664→   664→  -webkit-backdrop-filter: blur(40px) saturate(1.6) !important;
+   665→   665→  border: 1px solid rgba(255,255,255,0.6) !important;
+   666→   666→  box-shadow:
+   667→   667→    0 24px 80px rgba(0,0,0,0.1),
+   668→   668→    0 0 1px rgba(255,255,255,0.8),
+   669→   669→    inset 0 1px 0 rgba(255,255,255,0.7) !important;
+   670→   670→}
+   671→   671→
+   672→   672→.dark .liquid-glass-dialog {
+   673→   673→  background: linear-gradient(135deg, rgba(10,10,20,0.92) 0%, rgba(10,10,20,0.85) 100%) !important;
+   674→   674→  border: 1px solid rgba(255,255,255,0.08) !important;
+   675→   675→  box-shadow:
+   676→   676→    0 24px 80px rgba(0,0,0,0.6),
+   677→   677→    0 0 1px rgba(255,255,255,0.05),
+   678→   678→    inset 0 1px 0 rgba(255,255,255,0.04) !important;
+   679→   679→}
+   680→   680→
+   681→   681→/* ─── Navigation bar ─── */
+   682→   682→
+   683→   683→.nav-bar {
+   684→   684→  position: fixed;
+   685→   685→  top: 12px;
+   686→   686→  left: 12px;
+   687→   687→  right: 12px;
+   688→   688→  z-index: 50;
+   689→   689→  background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%);
+   690→   690→  backdrop-filter: blur(24px) saturate(1.5);
+   691→   691→  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+   692→   692→  border: 1px solid rgba(255,255,255,0.5);
+   693→   693→  border-radius: 20px;
+   694→   694→  box-shadow:
+   695→   695→    0 8px 32px rgba(0,0,0,0.06),
+   696→   696→    inset 0 1px 0 rgba(255,255,255,0.6);
+   697→   697→}
+   698→   698→
+   699→   699→.dark .nav-bar {
+   700→   700→  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+   701→   701→  border: 1px solid rgba(255,255,255,0.08);
+   702→   702→  box-shadow:
+   703→   703→    0 8px 32px rgba(0,0,0,0.4),
+   704→   704→    inset 0 1px 0 rgba(255,255,255,0.04);
+   705→   705→}
+   706→   706→
+   707→   707→/* ─── Transaction row ─── */
+   708→   708→
+   709→   709→.transaction-row {
+   710→   710→  display: flex;
+   711→   711→  align-items: center;
+   712→   712→  gap: 12px;
+   713→   713→  padding: 14px 12px;
+   714→   714→  border-radius: 16px;
+   715→   715→  transition: background 0.2s ease;
+   716→   716→}
+   717→   717→
+   718→   718→.transaction-row:hover {
+   719→   719→  background: rgba(0,0,0,0.03);
+   720→   720→}
+   721→   721→
+   722→   722→.dark .transaction-row:hover {
+   723→   723→  background: rgba(255,255,255,0.03);
+   724→   724→}
+   725→   725→
+   726→   726→/* ─── Section divider ─── */
+   727→   727→
+   728→   728→.section-divider {
+   729→   729→  height: 1px;
+   730→   730→  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent);
+   731→   731→  margin: 24px 0;
+   732→   732→}
+   733→   733→
+   734→   734→.dark .section-divider {
+   735→   735→  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+   736→   736→}
+   737→   737→
+   738→   738→/* ─── Ambient background ─── */
+   739→   739→
+   740→   740→.bg-ambient {
+   741→   741→  position: fixed;
+   742→   742→  inset: 0;
+   743→   743→  z-index: -1;
+   744→   744→  overflow: hidden;
+   745→   745→  pointer-events: none;
+   746→   746→}
+   747→   747→
+   748→   748→.bg-ambient::before {
+   749→   749→  content: '';
+   750→   750→  position: absolute;
+   751→   751→  top: -10%;
+   752→   752→  right: -10%;
+   753→   753→  width: 500px;
+   754→   754→  height: 500px;
+   755→   755→  background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+   756→   756→  filter: blur(60px);
+   757→   757→  animation: ambientFloat1 20s ease-in-out infinite;
+   758→   758→}
+   759→   759→
+   760→   760→.bg-ambient::after {
+   761→   761→  content: '';
+   762→   762→  position: absolute;
+   763→   763→  bottom: -5%;
+   764→   764→  left: -5%;
+   765→   765→  width: 400px;
+   766→   766→  height: 400px;
+   767→   767→  background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+   768→   768→  filter: blur(50px);
+   769→   769→  animation: ambientFloat2 25s ease-in-out infinite;
+   770→   770→}
+   771→   771→
+   772→   772→.dark .bg-ambient::before {
+   773→   773→  background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+   774→   774→}
+   775→   775→
+   776→   776→.dark .bg-ambient::after {
+   777→   777→  background: radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%);
+   778→   778→}
+   779→   779→
+   780→   780→@keyframes ambientFloat1 {
+   781→   781→  0%, 100% { transform: translate(0, 0) scale(1); }
+   782→   782→  33% { transform: translate(-30px, 20px) scale(1.05); }
+   783→   783→  66% { transform: translate(20px, -10px) scale(0.95); }
+   784→   784→}
+   785→   785→
+   786→   786→@keyframes ambientFloat2 {
+   787→   787→  0%, 100% { transform: translate(0, 0) scale(1); }
+   788→   788→  33% { transform: translate(20px, -30px) scale(1.08); }
+   789→   789→  66% { transform: translate(-10px, 20px) scale(0.92); }
+   790→   790→}
+   791→   791→
+   792→   792→/* ─── Entrance animation ─── */
+   793→   793→
+   794→   794→.animate-fade-in-up {
+   795→   795→  animation: fadeInUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+   796→   796→  opacity: 0;
+   797→   797→}
+   798→   798→
+   799→   799→@keyframes fadeInUp {
+   800→   800→  from {
+   801→   801→    opacity: 0;
+   802→   802→    transform: translateY(12px);
+   803→   803→  }
+   804→   804→  to {
+   805→   805→    opacity: 1;
+   806→   806→    transform: translateY(0);
+   807→   807→  }
+   808→   808→}
+   809→   809→
+   810→   810→/* ─── Custom scrollbar ─── */
+   811→   811→
+   812→   812→::-webkit-scrollbar {
+   813→   813→  width: 4px;
+   814→   814→}
+   815→   815→
+   816→   816→::-webkit-scrollbar-track {
+   817→   817→  background: transparent;
+   818→   818→}
+   819→   819→
+   820→   820→::-webkit-scrollbar-thumb {
+   821→   821→  background: rgba(0, 0, 0, 0.12);
+   822→   822→  border-radius: 4px;
+   823→   823→}
+   824→   824→
+   825→   825→::-webkit-scrollbar-thumb:hover {
+   826→   826→  background: rgba(0, 0, 0, 0.2);
+   827→   827→}
+   828→   828→
+   829→   829→.dark ::-webkit-scrollbar-thumb {
+   830→   830→  background: rgba(255, 255, 255, 0.1);
+   831→   831→}
+   832→   832→
+   833→   833→.dark ::-webkit-scrollbar-thumb:hover {
+   834→   834→  background: rgba(255, 255, 255, 0.2);
+   835→   835→}
+   836→   836→
+   837→   837→/* ─── Safe area ─── */
+   838→   838→
+   839→   839→@supports (padding: env(safe-area-inset-bottom)) {
+   840→   840→  .safe-bottom {
+   841→   841→    padding-bottom: env(safe-area-inset-bottom);
+   842→   842→  }
+   843→   843→}
+   844→   844→
+   845→   845→/* ─── Gradient text helper ─── */
+   846→   846→
+   847→   847→.text-gradient-blue {
+   848→   848→  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+   849→   849→  -webkit-background-clip: text;
+   850→   850→  -webkit-text-fill-color: transparent;
+   851→   851→  background-clip: text;
+   852→   852→}
+   853→   853→

@@ -278,7 +278,6 @@ button[class*="shrink-0"]:hover {
   border-color: rgba(59,130,246,0.3) !important;
   box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
   color: rgba(59,130,246,1) !important;
-  transform: scale(1.06);
 }
 
 .month-arrow:active {
@@ -316,7 +315,6 @@ button[class*="shrink-0"]:hover {
 }
 
 [data-glass-hover]:not(.liquid-glass-green):not(.liquid-glass-red):not(.liquid-glass-blue):not(.liquid-glass-btn):not(.liquid-glass-sm):not(.liquid-glass):not([data-state="active"]):active {
-  transform: scale(0.97) !important;
   background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.05) 100%) !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
 }
