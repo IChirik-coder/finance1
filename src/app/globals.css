@@ -278,14 +278,16 @@ button[class*="shrink-0"]:hover {
 /* ─── Interactive hover (same effect as month arrows) ─── */
 
 .interactive-hover {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
 }
 
 .interactive-hover:hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
-  border-color: rgba(59,130,246,0.3) !important;
-  box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
-  color: rgba(59,130,246,1) !important;
+  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.25) 100%) !important;
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.5) !important;
+  border: 1px solid rgba(59,130,246,0.35) !important;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.12), 0 1px 3px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.6) !important;
   transform: scale(1.06);
 }
 
@@ -295,10 +297,9 @@ button[class*="shrink-0"]:hover {
 }
 
 .dark .interactive-hover:hover {
-  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
-  border-color: rgba(59,130,246,0.25) !important;
-  box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-  color: rgba(147,197,253,1) !important;
+  background: linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(139,92,246,0.12) 100%) !important;
+  border: 1px solid rgba(59,130,246,0.3) !important;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.2), 0 1px 3px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255,255,255,0.06) !important;
 }
 
 /* ─── Action button ─── */
