@@ -209,7 +209,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
                   <input type="number" min="0" value={p.reviewCount} onChange={e => setPlatformReviewCount(p.name, parseInt(e.target.value)||0)} className="liquid-stepper-value text-foreground" />
                   <button type="button" className="liquid-stepper-btn" onClick={() => setPlatformReviewCount(p.name, p.reviewCount + 1)}><PlusCircle /></button>
                 </div>
-                <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} className="flex-shrink-0 p-1 rounded-lg hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                <button type="button" onClick={() => setPlatformReviewCount(p.name, 0)} data-glass-hover className="flex-shrink-0 p-1.5 rounded-xl border border-transparent transition-all duration-200"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
               </div>
               <div className="flex items-center justify-between mt-1.5 pl-8">
                 <span className="text-[11px] text-muted-foreground tabular-nums">{feeMap[p.name]||0}₽ × {p.reviewCount} = {((feeMap[p.name]||0)*p.reviewCount)}₽</span>
