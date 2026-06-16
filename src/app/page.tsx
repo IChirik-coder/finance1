@@ -137,8 +137,8 @@ const TransactionRow = memo(function TransactionRow({ t, onEdit, onDelete, feeMa
           {`${isIncome ? '+' : '−'}${fmtCur(t.amount)}`}
         </span>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <button onClick={() => onEdit(t)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-          <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+          <button onClick={() => onEdit(t)} className="p-1.5 rounded-lg interactive-hover"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+          <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-lg interactive-hover"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
         </div>
       </div>
     </div>
@@ -170,8 +170,8 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
     <div className="space-y-5">
       {/* Type toggle */}
       <div className="flex liquid-glass rounded-2xl p-1 gap-1">
-        <button type="button" onClick={() => setType('income')} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${isIncome ? 'liquid-glass-green !rounded-xl' : 'text-muted-foreground hover:text-foreground/60'}`}>Доход</button>
-        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${!isIncome ? 'liquid-glass-red !rounded-xl' : 'text-muted-foreground hover:text-foreground/60'}`}>Расход</button>
+        <button type="button" onClick={() => setType('income')} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${isIncome ? 'liquid-glass-green !rounded-xl' : 'text-muted-foreground interactive-hover'}`}>Доход</button>
+        <button type="button" onClick={() => { setType('expense'); setTaxRate('none') }} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${!isIncome ? 'liquid-glass-red !rounded-xl' : 'text-muted-foreground interactive-hover'}`}>Расход</button>
       </div>
       {/* Amount */}
       <div className="relative">
@@ -187,7 +187,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
             {platformsList.map(p => {
               const sel = platforms.find(pl => pl.name === p.name && pl.reviewCount > 0)
               return (
-                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${sel ? 'liquid-glass-green !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+                <button key={p.name} type="button" onClick={() => togglePlatform(p.name)} className={`flex items-center gap-1.5 p-2.5 text-[11px] rounded-2xl transition-all duration-200 ${sel ? 'liquid-glass-green !rounded-2xl font-semibold' : 'bg-secondary text-muted-foreground interactive-hover'}`}>
                   <PlatformIcon name={p.name} size={16} iconMap={iconMap} /><span className="truncate">{p.name}</span>{sel && <span className="ml-auto text-[var(--income-color)]/60">✓</span>}
                 </button>
               )
@@ -224,7 +224,7 @@ function TransactionForm({ type, setType, amount, setAmount, description, setDes
           <label className="text-[11px] font-medium text-muted-foreground mb-2 block tracking-wide">Налоговый вычет</label>
           <div className="flex liquid-glass rounded-2xl p-1 gap-1">
             {(['none','4','6'] as const).map(rate => (
-              <button key={rate} type="button" onClick={() => setTaxRate(rate)} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${taxRate===rate ? (rate==='none' ? 'liquid-glass-sm !rounded-xl !bg-secondary text-foreground' : 'liquid-glass-blue !rounded-xl font-bold') : 'text-muted-foreground hover:text-foreground/60'}`}>
+              <button key={rate} type="button" onClick={() => setTaxRate(rate)} className={`flex-1 h-10 text-sm font-semibold rounded-xl transition-all duration-200 ${taxRate===rate ? (rate==='none' ? 'liquid-glass-sm !rounded-xl !bg-secondary text-foreground' : 'liquid-glass-blue !rounded-xl font-bold') : 'text-muted-foreground interactive-hover'}`}>
                 {rate==='none' ? 'Без вычета' : `${rate}%`}
               </button>
             ))}
@@ -588,13 +588,13 @@ export default function Home() {
             <span className="font-semibold text-sm tracking-tight text-foreground">Финансы</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setIsHistoryOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="История">
+            <button onClick={() => setIsHistoryOpen(true)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="История">
               <History className="w-[18px] h-[18px] text-muted-foreground" />
             </button>
-            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Тема" suppressHydrationWarning>
+            <button onClick={() => setIsDark(prev => !prev)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="Тема" suppressHydrationWarning>
               {!mounted ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : isDark ? <Sun className="w-[18px] h-[18px] text-muted-foreground" /> : <Moon className="w-[18px] h-[18px] text-muted-foreground" />}
             </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="liquid-glass-sm !px-3 !py-2 !rounded-xl transition-colors hover:bg-secondary/50" title="Настройки">
+            <button onClick={() => setIsSettingsOpen(true)} className="liquid-glass-sm interactive-hover !px-3 !py-2 !rounded-xl" title="Настройки">
               <Settings className="w-[18px] h-[18px] text-muted-foreground" />
             </button>
             <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="liquid-glass-sm !px-3 !py-2 !rounded-xl !bg-primary !text-primary-foreground !border-primary/50 transition-colors" title="Добавить">
@@ -636,7 +636,7 @@ export default function Home() {
             </button>
             <div className="flex items-center gap-3 min-w-0">
               <h1 className="font-semibold text-lg tracking-tight text-foreground truncate">{MONTHS_RU[selectedMonth-1]} {selectedYear}</h1>
-              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/15 transition-colors shrink-0">Сегодня</button>}
+              {!isCurrentMonth && <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-primary bg-primary/10 px-3 py-1 rounded-full interactive-hover shrink-0">Сегодня</button>}
             </div>
             <button
               onClick={goToNextMonth}
@@ -706,9 +706,9 @@ export default function Home() {
           </div>
           <Tabs value={filterTab} onValueChange={v => setFilterTab(v as 'all'|'income'|'expense')} className="mb-4">
             <TabsList className="w-full bg-secondary rounded-2xl p-1 h-10 border border-border">
-              <TabsTrigger value="all" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground transition-all">Все</TabsTrigger>
-              <TabsTrigger value="income" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground transition-all">Доходы</TabsTrigger>
-              <TabsTrigger value="expense" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground transition-all">Расходы</TabsTrigger>
+              <TabsTrigger value="all" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Все</TabsTrigger>
+              <TabsTrigger value="income" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--income-bg)] data-[state=active]:text-[var(--income-color)] data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Доходы</TabsTrigger>
+              <TabsTrigger value="expense" className="flex-1 text-[11px] font-medium rounded-xl data-[state=active]:bg-[var(--expense-bg)] data-[state=active]:text-[var(--expense-color)] data-[state=active]:shadow-sm text-muted-foreground interactive-hover">Расходы</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -736,7 +736,7 @@ export default function Home() {
       <button onClick={() => { resetAddForm(); setIsDialogOpen(true) }} className="fixed bottom-6 right-6 h-14 w-14 liquid-glass-btn flex items-center justify-center shadow-lg sm:hidden z-30 rounded-2xl"><Plus className="w-6 h-6" /></button>
 
       {/* Scroll-to-top */}
-      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 liquid-glass-sm rounded-2xl z-30 transition-colors hover:bg-secondary/50"><ChevronLeft className="w-4 h-4 rotate-90 text-muted-foreground" /></button>}
+      {showScrollTop && <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="fixed bottom-6 left-6 p-3 liquid-glass-sm interactive-hover rounded-2xl z-30"><ChevronLeft className="w-4 h-4 rotate-90 text-muted-foreground" /></button>}
 
       {/* Add Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -876,7 +876,7 @@ export default function Home() {
                   <button
                     key={`${h.year}-${h.month}`}
                     onClick={() => { setSelectedMonth(h.month); setSelectedYear(h.year); setIsHistoryOpen(false) }}
-                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'hover:bg-secondary/30'}`}
+                    className={`w-full text-left liquid-glass rounded-2xl p-3.5 transition-all duration-200 ${isSelected ? 'ring-2 ring-primary/40 !bg-primary/5' : 'interactive-hover'}`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground/80'}`}>{MONTHS_RU[h.month - 1]} {h.year}</span>

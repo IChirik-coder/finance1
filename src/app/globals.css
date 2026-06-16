@@ -275,6 +275,32 @@ button[class*="shrink-0"]:hover {
   color: rgba(147,197,253,1) !important;
 }
 
+/* ─── Interactive hover (same effect as month arrows) ─── */
+
+.interactive-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.interactive-hover:hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+  box-shadow: 0 6px 24px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+  color: rgba(59,130,246,1) !important;
+  transform: scale(1.06);
+}
+
+.interactive-hover:active {
+  transform: scale(0.95) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+}
+
+.dark .interactive-hover:hover {
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0.1) 100%) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+  box-shadow: 0 6px 24px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  color: rgba(147,197,253,1) !important;
+}
+
 /* ─── Action button ─── */
 
 .liquid-glass-btn {
