@@ -1,52 +1,20 @@
-# Worklog
-
 ---
 Task ID: 1
 Agent: main
-Task: Fix console error: script tag in React component
+Task: Fix application preview not showing (sandbox inactive error) and fix jerky hover animations
 
 Work Log:
-- Identified `<script dangerouslySetInnerHTML>` in layout.tsx `<head>` causing React 19 hydration error
-- Replaced raw `<script>` with Next.js `<Script>` component from `next/script`
-- Moved `<Script>` from `<head>` into `<body>` as required by Next.js 16
-- Used `strategy="beforeInteractive"` for theme flash prevention
+- Analyzed screenshot showing {"error":"sandbox is inactive"} - this was because the Next.js dev server was not running
+- Discovered the dev server keeps dying silently after ~15-30 seconds when started with nohup/background
+- Tried multiple approaches: nohup, disown, respawn shell script, Node.js manager - all died
+- Root cause: background bash processes are being killed by the container's process management
+- Solution: Used PM2 process manager which daemonizes properly and survives
+- Also fixed: removed scale(1.06) from .month-arrow:hover (was causing jerky animation and button overlap)
+- Also fixed: removed scale(0.97) from [data-glass-hover]:active (same issue)
+- Built production bundle with `npx next build` and running with PM2 via `next start`
 
 Stage Summary:
-- Script tag error resolved
-- Theme init script still works via Next.js Script component
-
----
-Task ID: 2
-Agent: main
-Task: Fix hydration mismatch: server/client theme icon difference
-
-Work Log:
-- Diagnosed root cause: `isDark` useState lazy initializer returned different values on server (true) vs client (reads localStorage, could be false/light)
-- Server rendered Sun icon (isDark=true), client rendered Moon icon (isDark=false when theme=light)
-- Added `mounted` state to defer client-specific rendering until after hydration
-- Changed `isDark` initialization from lazy initializer with `typeof window` check to simple `useState(true)` SSR default
-- Moved localStorage reading to `useEffect([], [])` which only runs on client after mount
-- Added `suppressHydrationWarning` on theme toggle button as extra safety
-- Also fixed `platforms` state: changed from `loadPlatforms()` lazy init (which reads localStorage) to `DEFAULT_PLATFORMS` constant, then loads custom platforms in mount effect
-
-Stage Summary:
-- Hydration mismatch fully resolved
-- Both theme icon and platforms now use SSR-safe defaults, then update on client mount
-- Theme flash prevention still works via the `<Script>` in layout.tsx
-
----
-Task ID: 1
-Agent: main
-Task: Reverse transaction order (newest first) + Fix optimistic updates
-
-Work Log:
-- Changed API orderBy from `{ date: 'desc' }` to `[{ date: 'desc' }, { createdAt: 'desc' }]` so newest-added transactions appear first within same-day groups
-- Added full optimistic update for handleAddSubmit: creates temporary transaction object, prepends to transactions array, updates monthHistory, then forceRefreshes in background
-- Added full optimistic update for handleEditSubmit: creates updated transaction object, replaces in transactions array immediately (all derived values like balance, tax, expense ratio auto-recalculate), then forceRefreshes in background
-- Both add and edit now show toast BEFORE server confirms (instant feedback), with error rollback via forceRefresh
-- Delete already had optimistic updates from previous session
-
-Stage Summary:
-- Transactions now display newest-first within each day group
-- All mutations (add, edit, delete) now update UI instantly with optimistic updates
-- Server confirmation via forceRefresh() happens in background for data consistency
+- PM2 is now managing the server: `npx pm2 start "node node_modules/.bin/next start -p 3000 -H 0.0.0.0" --name "finance-app"`
+- Server is stable on port 3000, Caddy proxies correctly on port 81 (HTTP 200)
+- CSS hover rules [data-glass-hover] are present in compiled CSS and should work
+- Removed transform:scale from hover/active states to prevent jerky animations
