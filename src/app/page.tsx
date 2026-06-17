@@ -772,12 +772,38 @@ export default function Home() {
             </div>
           )}
 
-          {!isLoading && Object.entries(groupedTransactions).map(([dateKey, txs]) => (
-            <div key={dateKey}>
-              <div className="sticky top-[60px] z-10 py-2"><span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg">{fmtFullDate(txs[0].date)}</span></div>
-              <div>{txs.map(t => <TransactionRow key={t.id} t={t} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}</div>
+          {!isLoading && (
+            <div className="space-y-4">
+              {Object.entries(groupedTransactions).map(([dateKey, txs]) => {
+                const dayIncome = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+                const dayExpense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+                const dayNet = dayIncome - dayExpense
+                const hasBoth = dayIncome > 0 && dayExpense > 0
+                return (
+                  <div key={dateKey} className="liquid-glass rounded-3xl p-4 sm:p-5">
+                    <div className="flex items-center justify-between px-1 pb-3 mb-1 border-b border-border/40">
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="font-semibold text-sm tracking-tight text-foreground">{fmtFullDate(txs[0].date)}</h3>
+                        <span className="text-[11px] text-muted-foreground">{txs.length} {pluralize(txs.length)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] font-semibold tabular-nums">
+                        {dayIncome > 0 && <span className="text-[var(--income-color)]">+{fmtCur(dayIncome)}</span>}
+                        {dayExpense > 0 && <span className="text-[var(--expense-color)]">−{fmtCur(dayExpense)}</span>}
+                        {hasBoth && (
+                          <span className={`px-2 py-0.5 rounded-full bg-secondary/60 ${dayNet >= 0 ? 'text-[var(--income-color)]' : 'text-[var(--expense-color)]'}`}>
+                            {dayNet >= 0 ? '+' : '−'}{fmtCur(Math.abs(dayNet))}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      {txs.map(t => <TransactionRow key={t.id} t={t} onEdit={openEditDialog} onDelete={setDeleteTarget} feeMap={feeMap} iconMap={iconMap} />)}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          )}
         </section>
       </main>
 
